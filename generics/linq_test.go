@@ -12,3 +12,11 @@ func TestSliceMap(t *testing.T) {
 	slice2 := SliceMap[s1, s2](slice1, func(s s1) s2 { return s2{fmt.Sprintf("%d", s.id+1)} })
 	fmt.Println(slice2)
 }
+
+func TestSort(t *testing.T) {
+	slice := []int{3, 1, 2}
+	Sort(slice)
+	if slice[0] != 1 || slice[1] != 2 || slice[2] != 3 {
+		t.Fatal(slice)
+	}
+}

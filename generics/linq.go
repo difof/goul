@@ -1,3 +1,5 @@
+//
+
 package generics
 
 // SliceMap returns a new slice with the results of applying the given function to each element of the given slice.
@@ -22,8 +24,15 @@ func SortF[T any](slice []T, fn func(T, T) bool) {
 	}
 }
 
-// Sort sorts the given slice.
+// Sort sorts the given slice in ascending order.
 func Sort[T LTGTConstraint](slice []T) {
+	SortF(slice, func(a, b T) bool {
+		return a > b
+	})
+}
+
+// SortReverse sorts the given slice in descending order.
+func SortReverse[T LTGTConstraint](slice []T) {
 	SortF(slice, func(a, b T) bool {
 		return a < b
 	})
