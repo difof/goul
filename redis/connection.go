@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/go-redis/cache/v8"
 	"github.com/go-redis/redis/v8"
-	"log"
 	"time"
 )
 
@@ -19,7 +18,9 @@ func Connect(opts *Options) (ctx Connection, err error) {
 	cl := redis.NewClient(&redis.Options{
 		Addr: opts.Addr,
 		OnConnect: func(ctx context.Context, cn *redis.Conn) error {
-			log.Printf("connected to redis")
+			if opts.ConnectCallback != nil {
+				return opts.ConnectCallback(ctx, cn)
+			}
 			return nil
 		},
 		Username:     opts.Username,
