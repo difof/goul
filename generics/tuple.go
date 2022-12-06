@@ -1,3 +1,5 @@
+//
+
 package generics
 
 type Tuple[T any, U any] struct {

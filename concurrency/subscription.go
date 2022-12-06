@@ -1,3 +1,5 @@
+//
+
 package concurrency
 
 type Subscription[ChannelT comparable, MsgT any] struct {

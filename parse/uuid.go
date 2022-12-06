@@ -1,3 +1,5 @@
+//
+
 package parse
 
 import (
@@ -10,8 +12,8 @@ var (
 	UUIDv4Regex    = regexp.MustCompile(UUIDv4RegexStr)
 )
 
-// ReadUUIDv4 reads a UUIDv4 from a string.
-func ReadUUIDv4(s string) (string, error) {
+// ExtractUUIDv4 reads a UUIDv4 from a string.
+func ExtractUUIDv4(s string) (string, error) {
 	match := UUIDv4Regex.FindStringSubmatch(s)
 	if match == nil || len(match) == 0 {
 		return "", fmt.Errorf("no UUIDv4 found in %s", s)
