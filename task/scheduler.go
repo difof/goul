@@ -1,20 +1,10 @@
-//
-
 package ticker
 
 import (
-	"dev.plutusdev.com/goul/concurrency"
 	"dev.plutusdev.com/goul/generics"
 	"github.com/gofrs/uuid"
 	"sync"
 	"time"
-)
-
-type brokerMessageType int
-
-const (
-	brokerMessageStart brokerMessageType = iota
-	brokerMessageStop
 )
 
 const DefaultPrecision = time.Millisecond * 100
@@ -42,9 +32,6 @@ type Scheduler struct {
 //
 // Smaller precision may add to CPU load with many taskConfigs running, due to periodical checks.
 func NewScheduler(precision time.Duration) *Scheduler {
-	b := concurrency.NewBroker[concurrency.StringChannelT, brokerMessageType]("::")
-	go b.Start()
-
 	return &Scheduler{
 		stopCh:      make(chan struct{}, 1),
 		taskConfigs: generics.NewSafeMap[uuid.UUID, *TaskConfig](),
