@@ -1,7 +1,7 @@
 package ticker
 
 import (
-	"dev.plutusdev.com/goul/generics"
+	"github.com/difof/goul/generics"
 	"github.com/gofrs/uuid"
 	"sync"
 	"time"
@@ -9,15 +9,17 @@ import (
 
 const DefaultPrecision = time.Millisecond * 100
 
-// Scheduler is used to create and manage TaskConfig.
-// Thread-safe.
+// Scheduler is used to create and manage tasks.
+//
+// Scheduler is thread-safe, and it's safe to add tasks after starting the scheduler.
 //
 // Example:
 //
 //	s := NewScheduler(DefaultPrecision)
 //	s.Every(1).Seconds().Do(func(t *Task) error { return nil })
 //	s.Every(2).Hours().Do(func(t *Task) error { return nil })
-//	s.Every().Day().Do(func(t *Task) error { return nil })
+//	s.Every().Day().After(1 * time.Hour * 24).Do(func(t *Task) error { return nil })
+//	s.Once().After(3 * time.Second).Do(taskFactory("once-after-3s"))
 //	s.Start()
 type Scheduler struct {
 	stopCh      chan struct{}

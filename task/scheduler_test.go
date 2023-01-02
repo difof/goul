@@ -53,7 +53,7 @@ func TestAfter(t *testing.T) {
 	})
 
 	t.Log("waiting for tasks to finish")
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 	t.Log("stopping scheduler")
 	s.Stop()
 	t.Log("scheduler stopped")

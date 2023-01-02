@@ -2,7 +2,7 @@
 
 Go utility library for my personal projects.
 
-Docs: [https://pkg.go.dev/dev.plutusdev.com/goul](https://pkg.go.dev/dev.plutusdev.com/goul)
+Docs: [https://pkg.go.dev/github.com/difof/goul](https://pkg.go.dev/github.com/difof/goul)
 
 ## Features
 I will add features as I need them.
@@ -23,4 +23,4 @@ I will add features as I need them.
 
 ## Usage
 
-`go get dev.plutusdev.com/goul`
+`go get github.com/difof/goul`

@@ -3,8 +3,8 @@
 package concurrency
 
 import (
-	"dev.plutusdev.com/goul/generics"
 	"fmt"
+	"github.com/difof/goul/generics"
 	"testing"
 	"time"
 )

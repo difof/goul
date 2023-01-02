@@ -2,7 +2,7 @@
 
 package concurrency
 
-import "dev.plutusdev.com/goul/generics"
+import "github.com/difof/goul/generics"
 
 type StringChannelT string
 type IntChannelT int
