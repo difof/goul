@@ -98,22 +98,29 @@ func (s *SafeSlice[V]) IsEmpty() bool {
 	return len(s.slice) == 0
 }
 
-// Iter returns iterator channel.
-func (s *SafeSlice[V]) Iter() <-chan Tuple[int, V] {
-	ch := make(chan Tuple[int, V])
+func (s *SafeSlice[V]) Iter() *Iterator[Tuple[int, V]] {
+	return NewIterator[Tuple[int, V]](s)
+}
 
+func (s *SafeSlice[V]) IterHandler(iter *Iterator[Tuple[int, V]]) {
 	go func() {
 		s.lock.RLock()
 		defer s.lock.RUnlock()
 
 		for i, item := range s.slice {
-			ch <- NewTuple(i, item)
+			select {
+			case <-iter.Done():
+				return
+			case iter.NextChannel() <- NewTuple(i, item):
+			}
 		}
 
-		close(ch)
+		iter.IterationDone()
 	}()
+}
 
-	return ch
+func (s *SafeSlice[V]) Iterable() Iterable[Tuple[int, V]] {
+	return s
 }
 
 // Clear clears the slice.
@@ -125,14 +132,14 @@ func (s *SafeSlice[V]) Clear() {
 }
 
 // Clone returns a clone of the slice. Same as Values.
-func (s *SafeSlice[V]) Clone() Collection[int, V, Tuple[int, V]] {
+func (s *SafeSlice[V]) Clone() Collection[int, V] {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
 	return NewSafeSlice(s.slice...)
 }
 
-func (s *SafeSlice[V]) Collection() Collection[int, V, Tuple[int, V]] {
+func (s *SafeSlice[V]) Collection() Collection[int, V] {
 	return s
 }
 

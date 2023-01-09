@@ -127,26 +127,33 @@ func (m *SafeMap[K, V]) IsEmpty() bool {
 	return len(m.m) == 0
 }
 
-// Iter returns a channel that iterates over the map.
-func (m *SafeMap[K, V]) Iter() <-chan Tuple[K, V] {
-	ch := make(chan Tuple[K, V], 1)
+func (m *SafeMap[K, V]) Iter() *Iterator[Tuple[K, V]] {
+	return NewIterator[Tuple[K, V]](m)
+}
 
+func (m *SafeMap[K, V]) IterHandler(iter *Iterator[Tuple[K, V]]) {
 	go func() {
 		m.lock.RLock()
 		defer m.lock.RUnlock()
 
 		for k, v := range m.m {
-			ch <- NewTuple(k, v)
+			select {
+			case <-iter.Done():
+				return
+			case iter.NextChannel() <- NewTuple(k, v):
+			}
 		}
 
-		close(ch)
+		iter.IterationDone()
 	}()
+}
 
-	return ch
+func (m *SafeMap[K, V]) Iterable() Iterable[Tuple[K, V]] {
+	return m
 }
 
 // Clone returns a copy of the map.
-func (m *SafeMap[K, V]) Clone() Collection[K, V, Tuple[K, V]] {
+func (m *SafeMap[K, V]) Clone() Collection[K, V] {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -158,6 +165,6 @@ func (m *SafeMap[K, V]) Clone() Collection[K, V, Tuple[K, V]] {
 	return NewSafeMap[K, V](items...)
 }
 
-func (m *SafeMap[K, V]) Collection() Collection[K, V, Tuple[K, V]] {
+func (m *SafeMap[K, V]) Collection() Collection[K, V] {
 	return m
 }
