@@ -191,6 +191,28 @@ func Select[K, V, Elem, NewK, NewV, NewElem any](
 	return n, nil
 }
 
+// Where returns a new collection with the items that match the predicate.
+func Where[K, V, Elem any](c Collection[K, V, Elem], fn func(Elem) (bool, error)) (r Collection[K, V, Elem], err error) {
+	it := c.Iter()
+	defer it.Close()
+
+	r = c.Factory()
+
+	for item := range it.Next() {
+		var ok bool
+		ok, err = fn(item)
+		if err != nil {
+			return
+		}
+
+		if ok {
+			r.AppendElem(item)
+		}
+	}
+
+	return
+}
+
 // Skip returns a new collection with the first n items skipped.
 func Skip[K, V any, Elem any](c Collection[K, V, Elem], n int) (r Collection[K, V, Elem]) {
 	// TODO

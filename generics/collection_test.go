@@ -52,7 +52,7 @@ func TestMinMax(t *testing.T) {
 func TestFirst(t *testing.T) {
 	slice := NewSafeSlice(11, 2, 3, 4, 5, 10, 7, 8, 9, 6)
 
-	if first, err := First(slice.AsIterable()); err != nil || first.Value() != 11 {
+	if first, err := First(slice.AsCollection()); err != nil || first.Value() != 11 {
 		t.Fatal(first, err)
 	}
 }
@@ -60,7 +60,7 @@ func TestFirst(t *testing.T) {
 func TestLast(t *testing.T) {
 	slice := NewSafeSlice(1, 2, 3, 4, 5, 10, 7, 8, 9, 6)
 
-	if last, err := Last(slice.AsIterable()); err != nil || last.Value() != 6 {
+	if last, err := Last(slice.AsCollection()); err != nil || last.Value() != 6 {
 		t.Fatal(last, err)
 	}
 }
@@ -120,6 +120,26 @@ func TestSelect(t *testing.T) {
 	}
 
 	for item := range n.Iter().Next() {
+		t.Log(item.Key(), item.Value())
+	}
+}
+
+func TestWhere(t *testing.T) {
+	slice := NewSafeSlice(1, 2, 3, 4, 5, 10, 7, 8, 9, 6, 5)
+
+	filtered, err := Where(slice.AsCollection(), func(i Tuple[int, int]) (bool, error) {
+		return i.Value() > 5, nil
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if filtered.Len() != 5 {
+		t.Fatal("not filtered")
+	}
+
+	for item := range filtered.Iter().Next() {
 		t.Log(item.Key(), item.Value())
 	}
 }
