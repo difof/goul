@@ -2,7 +2,9 @@
 
 package generics
 
-import "sync"
+import (
+	"sync"
+)
 
 // SafeMap is a thread-safe map.
 type SafeMap[K comparable, V comparable] struct {
@@ -17,7 +19,7 @@ func NewSafeMap[K comparable, V comparable](items ...Tuple[K, V]) *SafeMap[K, V]
 	if items != nil && len(items) > 0 {
 		m = make(map[K]V, len(items))
 		for _, item := range items {
-			m[item.First] = item.Second
+			m[item.Key()] = item.Value()
 		}
 	} else {
 		m = make(map[K]V)
@@ -26,8 +28,8 @@ func NewSafeMap[K comparable, V comparable](items ...Tuple[K, V]) *SafeMap[K, V]
 	return &SafeMap[K, V]{m: m}
 }
 
-// Get gets a value from the map.
-func (m *SafeMap[K, V]) Get(key K) (V, bool) {
+// GetE gets a value from the map.
+func (m *SafeMap[K, V]) GetE(key K) (V, bool) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -35,9 +37,9 @@ func (m *SafeMap[K, V]) Get(key K) (V, bool) {
 	return val, ok
 }
 
-// MustGet gets a value from the map. Panics if the key does not exist.
-func (m *SafeMap[K, V]) MustGet(key K) V {
-	v, ok := m.Get(key)
+// Get gets a value from the map. Panics if the key does not exist.
+func (m *SafeMap[K, V]) Get(key K) V {
+	v, ok := m.GetE(key)
 	if !ok {
 		panic("key does not exist")
 	}
@@ -67,6 +69,11 @@ func (m *SafeMap[K, V]) Len() int {
 	defer m.lock.RUnlock()
 
 	return len(m.m)
+}
+
+// Cap returns the capacity of the map, which is equal to the length.
+func (m *SafeMap[K, V]) Cap() int {
+	return m.Len()
 }
 
 // Values returns all values in the map.
@@ -150,4 +157,21 @@ func (m *SafeMap[K, V]) Iter() <-chan Tuple[K, V] {
 	}()
 
 	return ch
+}
+
+// Clone returns a copy of the map.
+func (m *SafeMap[K, V]) Clone() Collection[K, V, Tuple[K, V]] {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	items := make([]Tuple[K, V], 0, m.Len())
+	for k, v := range m.m {
+		items = append(items, NewTuple(k, v))
+	}
+
+	return NewSafeMap[K, V](items...)
+}
+
+func (m *SafeMap[K, V]) Collection() Collection[K, V, Tuple[K, V]] {
+	return m
 }

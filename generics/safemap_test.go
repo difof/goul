@@ -19,7 +19,7 @@ func TestNewSafeMap(t *testing.T) {
 
 		m.Set(key, "value")
 		time.Sleep(time.Millisecond)
-		m.Get(key)
+		m.GetE(key)
 	}
 
 	for i := 0; i < 1000; i++ {
