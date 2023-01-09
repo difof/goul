@@ -155,6 +155,11 @@ func (s *SafeSlice[V]) Compare(i, j Tuple[int, V], comp func(V, V) CompareResult
 	return comp(s.Get(i.Key()), s.Get(j.Key()))
 }
 
+// Factory returns a new SafeSlice.
+func (s *SafeSlice[V]) Factory() Collection[int, V, Tuple[int, V]] {
+	return NewSafeSlice[V]()
+}
+
 func (s *SafeSlice[V]) AsCollection() Collection[int, V, Tuple[int, V]] {
 	return s
 }

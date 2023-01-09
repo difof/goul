@@ -46,6 +46,9 @@ type Collection[K, V, Elem any] interface {
 	Settable[K, V, Elem]
 	Iterable[Elem]
 
+	// Factory returns a new collection of the same type.
+	Factory() Collection[K, V, Elem]
+
 	// Clone returns a copy of the collection.
 	Clone() Collection[K, V, Elem]
 

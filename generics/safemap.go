@@ -171,6 +171,11 @@ func (m *SafeMap[K, V]) Clone() Collection[K, V, Tuple[K, V]] {
 	return NewSafeMap[K, V](items...)
 }
 
+// Factory returns a new instance of the map.
+func (m *SafeMap[K, V]) Factory() Collection[K, V, Tuple[K, V]] {
+	return NewSafeMap[K, V]()
+}
+
 func (m *SafeMap[K, V]) AsCollection() Collection[K, V, Tuple[K, V]] {
 	return m
 }
