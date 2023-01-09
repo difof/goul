@@ -26,6 +26,14 @@ func NewSafeSliceN[V any](s, n int) *SafeSlice[V] {
 	return &SafeSlice[V]{slice: make([]V, s, n)}
 }
 
+// Slice returns a new SafeSlice with the elements from start to end-1.
+func (s *SafeSlice[V]) Slice(start, end int) *SafeSlice[V] {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return NewSafeSlice(s.slice[start:end]...)
+}
+
 // Append appends a value to the slice.
 func (s *SafeSlice[V]) Append(item V) {
 	s.lock.Lock()

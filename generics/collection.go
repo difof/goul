@@ -7,7 +7,7 @@ var ErrNotFound = errors.New("item not found")
 
 // Slicable is a collection that can be sliced.
 type Slicable interface {
-	Slice(start, count int) Slicable
+	Slice(start, end int) Slicable
 }
 
 // Sizable is a generic interface for collections that can be sized.
