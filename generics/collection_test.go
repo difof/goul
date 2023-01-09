@@ -100,7 +100,7 @@ func TestFindLast(t *testing.T) {
 }
 
 func TestSelect(t *testing.T) {
-	m := NewSafeMap(
+	m := NewSafeMap[string, int](
 		NewTuple("a", 1),
 		NewTuple("b", 2),
 		NewTuple("c", 3))
