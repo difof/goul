@@ -1,6 +1,9 @@
 package generics
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestAny(t *testing.T) {
 	slice := NewSafeSlice(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
@@ -73,5 +76,50 @@ func TestOrderBy(t *testing.T) {
 
 	if ordered.Values()[9] != 10 {
 		t.Fatal("not ordered")
+	}
+}
+
+func TestFind(t *testing.T) {
+	slice := NewSafeSlice(1, 2, 3, 4, 5, 10, 7, 8, 9, 6, 5)
+
+	if found, err := Find(slice.AsIterable(), func(i Tuple[int, int]) (bool, error) {
+		return i.Value() == 5, nil
+	}); err != nil || found.Value() != 5 || found.Key() != 4 {
+		t.Fatal(found, err)
+	}
+}
+
+func TestFindLast(t *testing.T) {
+	slice := NewSafeSlice(1, 2, 3, 4, 5, 10, 7, 8, 9, 6, 5)
+
+	if found, err := FindLast(slice.AsIterable(), func(i Tuple[int, int]) (bool, error) {
+		return i.Value() == 5, nil
+	}); err != nil || found.Value() != 5 || found.Key() != 10 {
+		t.Fatal(found, err)
+	}
+}
+
+func TestSelect(t *testing.T) {
+	m := NewSafeMap(
+		NewTuple("a", 1),
+		NewTuple("b", 2),
+		NewTuple("c", 3))
+
+	n := NewSafeMap[string, float32]()
+
+	mapped, err := Select(m.AsCollection(), n.AsCollection(), func(kv Tuple[string, int]) (Tuple[string, float32], error) {
+		return NewTuple(strings.ToUpper(kv.Key()), float32(kv.Value())*2.001), nil
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if mapped.Len() != 3 {
+		t.Fatal("not mapped")
+	}
+
+	for item := range n.Iter().Next() {
+		t.Log(item.Key(), item.Value())
 	}
 }

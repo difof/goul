@@ -60,6 +60,11 @@ func (m *SafeMap[K, V]) SetElem(elem Tuple[K, V]) {
 	m.Set(elem.Key(), elem.Value())
 }
 
+// AppendElem appends an element to the map.
+func (m *SafeMap[K, V]) AppendElem(elem Tuple[K, V]) {
+	m.SetElem(elem)
+}
+
 // Delete deletes a value from the map.
 func (m *SafeMap[K, V]) Delete(key K) {
 	m.lock.Lock()

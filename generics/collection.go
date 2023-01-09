@@ -5,6 +5,11 @@ import "errors"
 var ErrNotComparable = errors.New("collection not comparable")
 var ErrNotFound = errors.New("item not found")
 
+// Slicable is a collection that can be sliced.
+type Slicable interface {
+	Slice(start, count int) Slicable
+}
+
 // Sizable is a generic interface for collections that can be sized.
 type Sizable interface {
 	Len() int
@@ -24,6 +29,7 @@ type Settable[K, V, Elem any] interface {
 	SetElem(Elem)
 	Delete(K)
 	Clear()
+	AppendElem(Elem)
 }
 
 // Collection is a generic interface for collections.
@@ -40,6 +46,9 @@ type Collection[K, V, Elem any] interface {
 	Settable[K, V, Elem]
 	Iterable[Elem]
 
+	// Clone returns a copy of the collection.
 	Clone() Collection[K, V, Elem]
+
+	// AsCollection returns the collection as a Collection[K, V, Elem].
 	AsCollection() Collection[K, V, Elem]
 }

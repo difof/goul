@@ -34,6 +34,11 @@ func (s *SafeSlice[V]) Append(item V) {
 	s.slice = append(s.slice, item)
 }
 
+// AppendElem appends a value to the slice.
+func (s *SafeSlice[V]) AppendElem(elem Tuple[int, V]) {
+	s.Append(elem.Value())
+}
+
 // AppendSlice appends a slice to the slice.
 func (s *SafeSlice[V]) AppendSlice(slice []V) {
 	s.lock.Lock()

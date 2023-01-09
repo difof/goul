@@ -116,6 +116,7 @@ func Last[Elem any](iterable Iterable[Elem]) (last Elem, err error) {
 
 // OrderBy returns a new collection ordered by the given comparator.
 func OrderBy[K, V any, Elem any](c Collection[K, V, Elem], comparator func(V, V) CompareResult) (r Collection[K, V, Elem]) {
+	// TODO: avoid double clone
 	r = c.Clone()
 	vals := r.Values()
 
@@ -124,6 +125,78 @@ func OrderBy[K, V any, Elem any](c Collection[K, V, Elem], comparator func(V, V)
 	})
 
 	return
+}
+
+// Find returns the first item in the collection that matches the predicate.
+func Find[Elem any](iterable Iterable[Elem], fn func(Elem) (bool, error)) (item Elem, err error) {
+	it := iterable.Iter()
+	defer it.Close()
+
+	for item = range it.Next() {
+		var ok bool
+		ok, err = fn(item)
+		if err != nil {
+			return item, err
+		}
+
+		if ok {
+			return
+		}
+	}
+
+	err = ErrNotFound
+
+	return
+}
+
+// FindLast returns the last item in the collection that matches the predicate.
+func FindLast[Elem any](iterable Iterable[Elem], fn func(Elem) (bool, error)) (item Elem, err error) {
+	it := iterable.Iter()
+	defer it.Close()
+
+	var last Elem
+	found := false
+
+	for item = range it.Next() {
+		var ok bool
+		ok, err = fn(item)
+		if err != nil {
+			return item, err
+		}
+
+		if ok {
+			last = item
+			found = true
+		}
+	}
+
+	if !found {
+		err = ErrNotFound
+	}
+
+	return last, err
+}
+
+// Select returns a new collection with the items transformed by the given function.
+// The n collection is the mapped collection, and it's preferred to be empty.
+func Select[K, V, Elem, NewK, NewV, NewElem any](
+	c Collection[K, V, Elem],
+	n Collection[NewK, NewV, NewElem],
+	fn func(Elem) (NewElem, error)) (Collection[NewK, NewV, NewElem], error) {
+
+	it := c.Iter()
+	defer it.Close()
+
+	for item := range it.Next() {
+		newItem, err := fn(item)
+		if err != nil {
+			return n, err
+		}
+
+		n.AppendElem(newItem)
+	}
+
+	return n, nil
 }
 
 // Skip returns a new collection with the first n items skipped.
