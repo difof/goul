@@ -99,7 +99,7 @@ func (s *SafeSlice[V]) IsEmpty() bool {
 }
 
 func (s *SafeSlice[V]) Iter() *Iterator[Tuple[int, V]] {
-	return NewIterator[Tuple[int, V]](s)
+	return NewIterator(s.Iterable())
 }
 
 func (s *SafeSlice[V]) IterHandler(iter *Iterator[Tuple[int, V]]) {

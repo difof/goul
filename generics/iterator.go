@@ -14,17 +14,15 @@ type Iterable[T any] interface {
 // Iterator is a generic iterator used to iterate over Collection.
 // Use Iterator.Close for early loop termination.
 type Iterator[T any] struct {
-	stop  chan struct{}
-	ch    chan T
-	owner Iterable[T]
+	stop chan struct{}
+	ch   chan T
 }
 
 // NewIterator returns a new iterator. Used by owner.Iter().
 func NewIterator[T any](owner Iterable[T]) (it *Iterator[T]) {
 	it = &Iterator[T]{
-		stop:  make(chan struct{}, 1),
-		ch:    make(chan T, 1),
-		owner: owner,
+		stop: make(chan struct{}, 1),
+		ch:   make(chan T, 1),
 	}
 
 	owner.IterHandler(it)

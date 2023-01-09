@@ -128,7 +128,7 @@ func (m *SafeMap[K, V]) IsEmpty() bool {
 }
 
 func (m *SafeMap[K, V]) Iter() *Iterator[Tuple[K, V]] {
-	return NewIterator[Tuple[K, V]](m)
+	return NewIterator(m.Iterable())
 }
 
 func (m *SafeMap[K, V]) IterHandler(iter *Iterator[Tuple[K, V]]) {
