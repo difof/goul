@@ -45,9 +45,9 @@ func (b *Broker[ChannelT, MsgT]) Start() {
 		case unsub := <-b.unsub:
 			delete(subs[unsub.channel], unsub)
 		case msg := <-b.pub:
-			for sub := range subs[msg.First] {
+			for sub := range subs[msg.Key()] {
 				select {
-				case sub.msgCh <- msg.Second:
+				case sub.msgCh <- msg.Value():
 				default:
 				}
 			}

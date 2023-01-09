@@ -46,7 +46,7 @@ func TestNewBroker(t *testing.T) {
 	unhandledClients := make([]int, 0, numSubs)
 	handledClients := make([]int, 0, numSubs)
 	for i := 0; i < numSubs; i++ {
-		if _, ok := subReceived.Get(i); !ok {
+		if _, ok := subReceived.GetE(i); !ok {
 			unhandledClients = append(unhandledClients, i)
 		} else {
 			handledClients = append(handledClients, i)
@@ -70,7 +70,7 @@ func TestBroker_Unsubscribe(t *testing.T) {
 
 	subFactory := func(id int, ch chan struct{}) {
 		for range ch {
-			receives.Set(id, receives.MustGet(id)+1)
+			receives.Set(id, receives.Get(id)+1)
 		}
 	}
 
@@ -92,8 +92,8 @@ func TestBroker_Unsubscribe(t *testing.T) {
 	b.PublishChannel("testchannel", struct{}{})
 
 	for i := 0; i < numSubs; i++ {
-		if receives.MustGet(i) != 1 {
-			t.Logf("Expected client %d to receive 1 message, but got %d", i, receives.MustGet(i))
+		if receives.Get(i) != 1 {
+			t.Logf("Expected client %d to receive 1 message, but got %d", i, receives.Get(i))
 			t.Fail()
 		}
 	}
