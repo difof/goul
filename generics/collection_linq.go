@@ -1,5 +1,7 @@
 package generics
 
+import "sort"
+
 // Any returns true if any item in the collection matches the predicate.
 func Any[Elem any](iterable Iterable[Elem], fn func(Elem) (bool, error)) (bool, error) {
 	it := iterable.Iter()
@@ -112,41 +114,26 @@ func Last[Elem any](iterable Iterable[Elem]) (last Elem, err error) {
 	return
 }
 
-//// Skip returns a new collection with the first n items skipped.
-//func Skip[K, V any, Iter any](c Collection[K, V, Iter], n int) (r Collection[K, V, Iter]) {
-//
-//}
-//
-//// OrderBy sorts the collection by the given key and returns a new collection.
-//func OrderBy[K, V any, Iter any](c Collection[K, V, Iter], comparator func(V, V) CompareResult) (r Collection[K, V, Iter], err error) {
-//	if comp, ok := c.(Comparable[K, Iter]); !ok {
-//		err = ErrNotComparable
-//		return
-//	} else if !c.IsEmpty() {
-//		r := c.Clone()
-//
-//		/*
-//			for i := 0; i < len(slice); i++ {
-//				for j := i + 1; j < len(slice); j++ {
-//					if ok, err := fn(slice[i], slice[j]); err != nil {
-//						return err
-//					} else if ok {
-//						slice[i], slice[j] = slice[j], slice[i]
-//					}
-//				}
-//			}
-//		*/
-//
-//		for i := 0; i < r.Len(); i++ {
-//			for j := i + 1; j < r.Len(); j++ {
-//				if comp.Compare(r.Get(i), r.Get(j), comparator) == GreaterThan {
-//					clone[i], clone[j] = clone[j], clone[i]
-//				}
-//			}
-//		}
-//
-//		r = clone
-//	}
-//
-//	return
-//}
+// OrderBy returns a new collection ordered by the given comparator.
+func OrderBy[K, V any, Elem any](c Collection[K, V, Elem], comparator func(V, V) CompareResult) (r Collection[K, V, Elem]) {
+	r = c.Clone()
+	vals := r.Values()
+
+	sort.Slice(vals, func(i, j int) bool {
+		return comparator(vals[i], vals[j]) == LessThan
+	})
+
+	return
+}
+
+// Skip returns a new collection with the first n items skipped.
+func Skip[K, V any, Elem any](c Collection[K, V, Elem], n int) (r Collection[K, V, Elem]) {
+	// TODO
+	return
+}
+
+// Take returns a new collection with the first n items.
+func Take[K, V any, Elem any](c Collection[K, V, Elem], n int) (r Collection[K, V, Elem]) {
+	// TODO
+	return
+}

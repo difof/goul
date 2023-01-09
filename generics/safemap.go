@@ -55,6 +55,11 @@ func (m *SafeMap[K, V]) Set(key K, val V) {
 	m.m[key] = val
 }
 
+// SetElem sets a value in the map.
+func (m *SafeMap[K, V]) SetElem(elem Tuple[K, V]) {
+	m.Set(elem.Key(), elem.Value())
+}
+
 // Delete deletes a value from the map.
 func (m *SafeMap[K, V]) Delete(key K) {
 	m.lock.Lock()
@@ -128,7 +133,7 @@ func (m *SafeMap[K, V]) IsEmpty() bool {
 }
 
 func (m *SafeMap[K, V]) Iter() *Iterator[Tuple[K, V]] {
-	return NewIterator(m.Iterable())
+	return NewIterator(m.AsIterable())
 }
 
 func (m *SafeMap[K, V]) IterHandler(iter *Iterator[Tuple[K, V]]) {
@@ -148,12 +153,8 @@ func (m *SafeMap[K, V]) IterHandler(iter *Iterator[Tuple[K, V]]) {
 	}()
 }
 
-func (m *SafeMap[K, V]) Iterable() Iterable[Tuple[K, V]] {
-	return m
-}
-
 // Clone returns a copy of the map.
-func (m *SafeMap[K, V]) Clone() Collection[K, V] {
+func (m *SafeMap[K, V]) Clone() Collection[K, V, Tuple[K, V]] {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -165,6 +166,10 @@ func (m *SafeMap[K, V]) Clone() Collection[K, V] {
 	return NewSafeMap[K, V](items...)
 }
 
-func (m *SafeMap[K, V]) Collection() Collection[K, V] {
+func (m *SafeMap[K, V]) AsCollection() Collection[K, V, Tuple[K, V]] {
+	return m
+}
+
+func (m *SafeMap[K, V]) AsIterable() Iterable[Tuple[K, V]] {
 	return m
 }

@@ -66,6 +66,11 @@ func (s *SafeSlice[V]) Set(i int, item V) {
 	s.slice[i] = item
 }
 
+// SetElem sets a value in the slice.
+func (s *SafeSlice[V]) SetElem(item Tuple[int, V]) {
+	s.Set(item.Key(), item.Value())
+}
+
 // Delete deletes a value at given index from the slice.
 func (s *SafeSlice[V]) Delete(i int) {
 	s.lock.Lock()
@@ -99,7 +104,7 @@ func (s *SafeSlice[V]) IsEmpty() bool {
 }
 
 func (s *SafeSlice[V]) Iter() *Iterator[Tuple[int, V]] {
-	return NewIterator(s.Iterable())
+	return NewIterator(s.AsIterable())
 }
 
 func (s *SafeSlice[V]) IterHandler(iter *Iterator[Tuple[int, V]]) {
@@ -119,10 +124,6 @@ func (s *SafeSlice[V]) IterHandler(iter *Iterator[Tuple[int, V]]) {
 	}()
 }
 
-func (s *SafeSlice[V]) Iterable() Iterable[Tuple[int, V]] {
-	return s
-}
-
 // Clear clears the slice.
 func (s *SafeSlice[V]) Clear() {
 	s.lock.Lock()
@@ -132,15 +133,11 @@ func (s *SafeSlice[V]) Clear() {
 }
 
 // Clone returns a clone of the slice. Same as Values.
-func (s *SafeSlice[V]) Clone() Collection[int, V] {
+func (s *SafeSlice[V]) Clone() Collection[int, V, Tuple[int, V]] {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
 	return NewSafeSlice(s.slice...)
-}
-
-func (s *SafeSlice[V]) Collection() Collection[int, V] {
-	return s
 }
 
 // Values returns all values in the slice. Same as Clone.
@@ -151,4 +148,12 @@ func (s *SafeSlice[V]) Values() []V {
 // Compare compares two slice items.
 func (s *SafeSlice[V]) Compare(i, j Tuple[int, V], comp func(V, V) CompareResult) CompareResult {
 	return comp(s.Get(i.Key()), s.Get(j.Key()))
+}
+
+func (s *SafeSlice[V]) AsCollection() Collection[int, V, Tuple[int, V]] {
+	return s
+}
+
+func (s *SafeSlice[V]) AsIterable() Iterable[Tuple[int, V]] {
+	return s
 }

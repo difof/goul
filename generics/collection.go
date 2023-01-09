@@ -19,8 +19,9 @@ type Gettable[K, V any] interface {
 }
 
 // Settable is a generic interface for collections that support writing.
-type Settable[K, V any] interface {
+type Settable[K, V, Elem any] interface {
 	Set(K, V)
+	SetElem(Elem)
 	Delete(K)
 	Clear()
 }
@@ -30,13 +31,15 @@ type Settable[K, V any] interface {
 //
 // The generic parameters are:
 //
-//	K: the key type
-//	V: the value type
-type Collection[K, V any] interface {
+//		K: the key type
+//		V: the value type
+//	 Elem: iterator element type, usually a Tuple[K, V]
+type Collection[K, V, Elem any] interface {
 	Sizable
 	Gettable[K, V]
-	Settable[K, V]
+	Settable[K, V, Elem]
+	Iterable[Elem]
 
-	Clone() Collection[K, V]
-	Collection() Collection[K, V]
+	Clone() Collection[K, V, Elem]
+	AsCollection() Collection[K, V, Elem]
 }

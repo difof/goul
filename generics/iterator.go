@@ -8,7 +8,7 @@ type Iterable[T any] interface {
 	IterHandler(*Iterator[T])
 
 	// Iterable returns the iterator type.
-	Iterable() Iterable[T]
+	AsIterable() Iterable[T]
 }
 
 // Iterator is a generic iterator used to iterate over Collection.
