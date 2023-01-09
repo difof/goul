@@ -1,4 +1,4 @@
-package generics
+package containers
 
 type Tuple[T any, U any] struct {
 	First  T

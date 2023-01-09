@@ -1,6 +1,7 @@
-package generics
+package containers
 
 import (
+	"github.com/difof/goul/generics"
 	"sync"
 )
 
@@ -116,11 +117,11 @@ func (s *SafeSlice[V]) IsEmpty() bool {
 	return len(s.slice) == 0
 }
 
-func (s *SafeSlice[V]) Iter() *Iterator[Tuple[int, V]] {
-	return NewIterator(s.AsIterable())
+func (s *SafeSlice[V]) Iter() *generics.Iterator[Tuple[int, V]] {
+	return generics.NewIterator(s.AsIterable())
 }
 
-func (s *SafeSlice[V]) IterHandler(iter *Iterator[Tuple[int, V]]) {
+func (s *SafeSlice[V]) IterHandler(iter *generics.Iterator[Tuple[int, V]]) {
 	go func() {
 		s.lock.RLock()
 		defer s.lock.RUnlock()
@@ -146,32 +147,39 @@ func (s *SafeSlice[V]) Clear() {
 }
 
 // Clone returns a clone of the slice. Same as Values.
-func (s *SafeSlice[V]) Clone() Collection[int, V, Tuple[int, V]] {
+func (s *SafeSlice[V]) Clone() generics.Collection[int, V, Tuple[int, V]] {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	return NewSafeSlice(s.slice...)
+	newSlice := make([]V, len(s.slice))
+
+	for i, item := range s.slice {
+		newSlice[i] = item
+	}
+
+	return NewSafeSlice(newSlice...)
 }
 
-// Values returns all values in the slice. Same as Clone.
+// Values returns all values in the slice.
+// This function is not thread-safe, use with caution.
 func (s *SafeSlice[V]) Values() []V {
-	return s.Clone().(*SafeSlice[V]).slice
+	return s.slice
 }
 
 // Compare compares two slice items.
-func (s *SafeSlice[V]) Compare(i, j Tuple[int, V], comp func(V, V) CompareResult) CompareResult {
+func (s *SafeSlice[V]) Compare(i, j Tuple[int, V], comp func(V, V) generics.CompareResult) generics.CompareResult {
 	return comp(s.Get(i.Key()), s.Get(j.Key()))
 }
 
 // Factory returns a new SafeSlice.
-func (s *SafeSlice[V]) Factory() Collection[int, V, Tuple[int, V]] {
+func (s *SafeSlice[V]) Factory() generics.Collection[int, V, Tuple[int, V]] {
 	return NewSafeSlice[V]()
 }
 
-func (s *SafeSlice[V]) AsCollection() Collection[int, V, Tuple[int, V]] {
+func (s *SafeSlice[V]) AsCollection() generics.Collection[int, V, Tuple[int, V]] {
 	return s
 }
 
-func (s *SafeSlice[V]) AsIterable() Iterable[Tuple[int, V]] {
+func (s *SafeSlice[V]) AsIterable() generics.Iterable[Tuple[int, V]] {
 	return s
 }

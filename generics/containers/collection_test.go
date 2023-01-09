@@ -1,6 +1,7 @@
-package generics
+package containers
 
 import (
+	"github.com/difof/goul/generics"
 	"strings"
 	"testing"
 )
@@ -8,7 +9,7 @@ import (
 func TestAny(t *testing.T) {
 	slice := NewSafeSlice(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
-	if found, _ := Any(slice.AsIterable(), func(i Tuple[int, int]) (bool, error) {
+	if found, _ := generics.Any(slice.AsIterable(), func(i Tuple[int, int]) (bool, error) {
 		return i.Value() == 5, nil
 	}); !found {
 		t.Fatal("not found")
@@ -19,7 +20,7 @@ func TestAny(t *testing.T) {
 	m.Set("b", 2)
 	m.Set("c", 3)
 
-	if found, _ := Any(m.AsIterable(), func(kv Tuple[string, int]) (bool, error) {
+	if found, _ := generics.Any(m.AsIterable(), func(kv Tuple[string, int]) (bool, error) {
 		return kv.Value() == 2, nil
 	}); !found {
 		t.Fatal("not found")
@@ -30,7 +31,7 @@ func TestAll(t *testing.T) {
 	// odd numbers
 	slice := NewSafeSlice(1, 3, 5, 7, 9)
 
-	if all, _ := All(slice.AsIterable(), func(i Tuple[int, int]) (bool, error) {
+	if all, _ := generics.All(slice.AsIterable(), func(i Tuple[int, int]) (bool, error) {
 		return i.Value()%2 == 1, nil
 	}); !all {
 		t.Fatal("not all odd")
@@ -40,11 +41,11 @@ func TestAll(t *testing.T) {
 func TestMinMax(t *testing.T) {
 	slice := NewSafeSlice(1, 2, 3, 4, 5, 10, 7, 8, 9, 6)
 
-	if min, err := Min(slice.AsIterable(), NumericComparator[int]); err != nil || min.Value() != 1 {
+	if min, err := generics.Min(slice.AsIterable(), generics.NumericComparator[int]); err != nil || min.Value() != 1 {
 		t.Fatal(min, err)
 	}
 
-	if max, err := Max(slice.AsIterable(), NumericComparator[int]); err != nil || max.Value() != 10 {
+	if max, err := generics.Max(slice.AsIterable(), generics.NumericComparator[int]); err != nil || max.Value() != 10 {
 		t.Fatal(max, err)
 	}
 }
@@ -52,7 +53,7 @@ func TestMinMax(t *testing.T) {
 func TestFirst(t *testing.T) {
 	slice := NewSafeSlice(11, 2, 3, 4, 5, 10, 7, 8, 9, 6)
 
-	if first, err := First(slice.AsCollection()); err != nil || first.Value() != 11 {
+	if first, err := generics.First(slice.AsCollection()); err != nil || first.Value() != 11 {
 		t.Fatal(first, err)
 	}
 }
@@ -60,7 +61,7 @@ func TestFirst(t *testing.T) {
 func TestLast(t *testing.T) {
 	slice := NewSafeSlice(1, 2, 3, 4, 5, 10, 7, 8, 9, 6)
 
-	if last, err := Last(slice.AsCollection()); err != nil || last.Value() != 6 {
+	if last, err := generics.Last(slice.AsCollection()); err != nil || last.Value() != 6 {
 		t.Fatal(last, err)
 	}
 }
@@ -68,7 +69,7 @@ func TestLast(t *testing.T) {
 func TestOrderBy(t *testing.T) {
 	slice := NewSafeSlice(4, 2, 3, 1, 5, 10, 7, 8, 9, 6)
 
-	ordered := OrderBy(slice.AsCollection(), NumericComparator[int])
+	ordered := generics.OrderBy(slice.AsCollection(), generics.NumericComparator[int])
 
 	if ordered.Values()[0] != 1 {
 		t.Fatal("not ordered")
@@ -77,12 +78,17 @@ func TestOrderBy(t *testing.T) {
 	if ordered.Values()[9] != 10 {
 		t.Fatal("not ordered")
 	}
+
+	generics.ForEach(ordered.AsIterable(), func(i Tuple[int, int]) error {
+		t.Log(i.Key(), i.Value())
+		return nil
+	})
 }
 
 func TestFind(t *testing.T) {
 	slice := NewSafeSlice(1, 2, 3, 4, 5, 10, 7, 8, 9, 6, 5)
 
-	if found, err := Find(slice.AsIterable(), func(i Tuple[int, int]) (bool, error) {
+	if found, err := generics.Find(slice.AsIterable(), func(i Tuple[int, int]) (bool, error) {
 		return i.Value() == 5, nil
 	}); err != nil || found.Value() != 5 || found.Key() != 4 {
 		t.Fatal(found, err)
@@ -92,7 +98,7 @@ func TestFind(t *testing.T) {
 func TestFindLast(t *testing.T) {
 	slice := NewSafeSlice(1, 2, 3, 4, 5, 10, 7, 8, 9, 6, 5)
 
-	if found, err := FindLast(slice.AsIterable(), func(i Tuple[int, int]) (bool, error) {
+	if found, err := generics.FindLast(slice.AsIterable(), func(i Tuple[int, int]) (bool, error) {
 		return i.Value() == 5, nil
 	}); err != nil || found.Value() != 5 || found.Key() != 10 {
 		t.Fatal(found, err)
@@ -107,7 +113,7 @@ func TestSelect(t *testing.T) {
 
 	n := NewSafeMap[string, float32]()
 
-	mapped, err := Select(m.AsCollection(), n.AsCollection(), func(kv Tuple[string, int]) (Tuple[string, float32], error) {
+	mapped, err := generics.Select(m.AsCollection(), n.AsCollection(), func(kv Tuple[string, int]) (Tuple[string, float32], error) {
 		return NewTuple(strings.ToUpper(kv.Key()), float32(kv.Value())*2.001), nil
 	})
 
@@ -127,7 +133,7 @@ func TestSelect(t *testing.T) {
 func TestWhere(t *testing.T) {
 	slice := NewSafeSlice(1, 2, 3, 4, 5, 10, 7, 8, 9, 6, 5)
 
-	filtered, err := Where(slice.AsCollection(), func(i Tuple[int, int]) (bool, error) {
+	filtered, err := generics.Where(slice.AsCollection(), func(i Tuple[int, int]) (bool, error) {
 		return i.Value() > 5, nil
 	})
 

@@ -1,7 +1,7 @@
 package ticker
 
 import (
-	"github.com/difof/goul/generics"
+	"github.com/difof/goul/generics/containers"
 	"github.com/gofrs/uuid"
 	"sync"
 	"time"
@@ -23,7 +23,7 @@ const DefaultPrecision = time.Millisecond * 100
 //	s.Start()
 type Scheduler struct {
 	stopCh      chan struct{}
-	taskConfigs *generics.SafeMap[uuid.UUID, *TaskConfig]
+	taskConfigs *containers.SafeMap[uuid.UUID, *TaskConfig]
 	wg          sync.WaitGroup
 	localTime   *time.Location
 	precision   time.Duration
@@ -36,7 +36,7 @@ type Scheduler struct {
 func NewScheduler(precision time.Duration) *Scheduler {
 	return &Scheduler{
 		stopCh:      make(chan struct{}, 1),
-		taskConfigs: generics.NewSafeMap[uuid.UUID, *TaskConfig](),
+		taskConfigs: containers.NewSafeMap[uuid.UUID, *TaskConfig](),
 		localTime:   time.Local,
 		precision:   precision,
 	}

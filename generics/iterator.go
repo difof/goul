@@ -7,7 +7,7 @@ type Iterable[T any] interface {
 	// IterHandler is the iterator handler goroutine.
 	IterHandler(*Iterator[T])
 
-	// Iterable returns the iterator type.
+	// AsIterable returns the iterator type.
 	AsIterable() Iterable[T]
 }
 

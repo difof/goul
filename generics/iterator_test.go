@@ -1,9 +1,12 @@
 package generics
 
-import "testing"
+import (
+	"github.com/difof/goul/generics/containers"
+	"testing"
+)
 
 func TestIterator_Close_SafeSlice(t *testing.T) {
-	s := NewSafeSlice(1, 2, 3, 4, 5, 6, 7)
+	s := containers.NewSafeSlice(1, 2, 3, 4, 5, 6, 7)
 
 	for i := 1; i <= 7; i++ {
 		v := 0
@@ -25,7 +28,7 @@ func TestIterator_Close_SafeSlice(t *testing.T) {
 }
 
 func TestIterator_Close_SafeMap(t *testing.T) {
-	m := NewSafeMap[string, int]()
+	m := containers.NewSafeMap[string, int]()
 	m.Set("a", 1)
 	m.Set("b", 2)
 	m.Set("c", 3)

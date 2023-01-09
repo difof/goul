@@ -2,7 +2,9 @@
 
 package concurrency
 
-import "github.com/difof/goul/generics"
+import (
+	"github.com/difof/goul/generics/containers"
+)
 
 type StringChannelT string
 type IntChannelT int
@@ -11,7 +13,7 @@ type EmptyMsgT *struct{}
 // Broker is a message broadcaster to multiple subscribers (channels).
 type Broker[ChannelT comparable, MsgT any] struct {
 	stop           chan struct{}
-	pub            chan generics.Tuple[ChannelT, MsgT]
+	pub            chan containers.Tuple[ChannelT, MsgT]
 	sub            chan *Subscription[ChannelT, MsgT]
 	unsub          chan *Subscription[ChannelT, MsgT]
 	defaultChannel ChannelT
@@ -21,7 +23,7 @@ type Broker[ChannelT comparable, MsgT any] struct {
 func NewBroker[ChannelT comparable, MsgT any](defaultChannel ChannelT) *Broker[ChannelT, MsgT] {
 	return &Broker[ChannelT, MsgT]{
 		stop:           make(chan struct{}),
-		pub:            make(chan generics.Tuple[ChannelT, MsgT], 1),
+		pub:            make(chan containers.Tuple[ChannelT, MsgT], 1),
 		sub:            make(chan *Subscription[ChannelT, MsgT], 1),
 		unsub:          make(chan *Subscription[ChannelT, MsgT], 1),
 		defaultChannel: defaultChannel,
@@ -62,12 +64,12 @@ func (b *Broker[ChannelT, MsgT]) Stop() {
 
 // Publish publishes a message to the broker on default channel.
 func (b *Broker[ChannelT, MsgT]) Publish(msg MsgT) {
-	b.pub <- generics.NewTuple(b.defaultChannel, msg)
+	b.pub <- containers.NewTuple(b.defaultChannel, msg)
 }
 
 // PublishChannel publishes a message to the broker.
 func (b *Broker[ChannelT, MsgT]) PublishChannel(channel ChannelT, msg MsgT) {
-	b.pub <- generics.NewTuple(channel, msg)
+	b.pub <- containers.NewTuple(channel, msg)
 }
 
 // Subscribe subscribes to the broker on default channel.

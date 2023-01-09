@@ -1,6 +1,6 @@
 //
 
-package generics
+package containers
 
 import (
 	"fmt"

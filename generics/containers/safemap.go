@@ -1,8 +1,7 @@
-//
-
-package generics
+package containers
 
 import (
+	"github.com/difof/goul/generics"
 	"sync"
 )
 
@@ -137,11 +136,11 @@ func (m *SafeMap[K, V]) IsEmpty() bool {
 	return len(m.m) == 0
 }
 
-func (m *SafeMap[K, V]) Iter() *Iterator[Tuple[K, V]] {
-	return NewIterator(m.AsIterable())
+func (m *SafeMap[K, V]) Iter() *generics.Iterator[Tuple[K, V]] {
+	return generics.NewIterator(m.AsIterable())
 }
 
-func (m *SafeMap[K, V]) IterHandler(iter *Iterator[Tuple[K, V]]) {
+func (m *SafeMap[K, V]) IterHandler(iter *generics.Iterator[Tuple[K, V]]) {
 	go func() {
 		m.lock.RLock()
 		defer m.lock.RUnlock()
@@ -159,7 +158,7 @@ func (m *SafeMap[K, V]) IterHandler(iter *Iterator[Tuple[K, V]]) {
 }
 
 // Clone returns a copy of the map.
-func (m *SafeMap[K, V]) Clone() Collection[K, V, Tuple[K, V]] {
+func (m *SafeMap[K, V]) Clone() generics.Collection[K, V, Tuple[K, V]] {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -172,14 +171,14 @@ func (m *SafeMap[K, V]) Clone() Collection[K, V, Tuple[K, V]] {
 }
 
 // Factory returns a new instance of the map.
-func (m *SafeMap[K, V]) Factory() Collection[K, V, Tuple[K, V]] {
+func (m *SafeMap[K, V]) Factory() generics.Collection[K, V, Tuple[K, V]] {
 	return NewSafeMap[K, V]()
 }
 
-func (m *SafeMap[K, V]) AsCollection() Collection[K, V, Tuple[K, V]] {
+func (m *SafeMap[K, V]) AsCollection() generics.Collection[K, V, Tuple[K, V]] {
 	return m
 }
 
-func (m *SafeMap[K, V]) AsIterable() Iterable[Tuple[K, V]] {
+func (m *SafeMap[K, V]) AsIterable() generics.Iterable[Tuple[K, V]] {
 	return m
 }

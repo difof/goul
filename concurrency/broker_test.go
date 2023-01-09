@@ -4,7 +4,7 @@ package concurrency
 
 import (
 	"fmt"
-	"github.com/difof/goul/generics"
+	"github.com/difof/goul/generics/containers"
 	"testing"
 	"time"
 )
@@ -14,7 +14,7 @@ func TestNewBroker(t *testing.T) {
 	go b.Start()
 
 	numSubs := 20
-	subReceived := generics.NewSafeMap[int, bool]()
+	subReceived := containers.NewSafeMap[int, bool]()
 
 	// create and subscribe 3 clients:
 	subFactory := func(id int) {
@@ -66,7 +66,7 @@ func TestBroker_Unsubscribe(t *testing.T) {
 	go b.Start()
 
 	// id -> num received
-	receives := generics.NewSafeMap[int, int]()
+	receives := containers.NewSafeMap[int, int]()
 
 	subFactory := func(id int, ch chan struct{}) {
 		for range ch {
