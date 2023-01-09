@@ -89,25 +89,17 @@ func Max[V, Elem any](iterable Iterable[Elem], comparator func(V, V) CompareResu
 }
 
 // First returns the first item in the collection.
-func First[Elem any](iterable Iterable[Elem]) (first Elem, err error) {
-	if sizable, ok := iterable.(Sizable); ok && sizable.IsEmpty() {
-		err = ErrNotFound
-		return
-	}
-
-	first = <-iterable.Iter().Next()
+func First[K, V, Elem any](c Collection[K, V, Elem]) (first Elem, err error) {
+	it := c.Iter()
+	first = <-it.Next()
+	it.Close()
 
 	return
 }
 
 // Last returns the last item in the collection.
-func Last[Elem any](iterable Iterable[Elem]) (last Elem, err error) {
-	if sizable, ok := iterable.(Sizable); ok && sizable.IsEmpty() {
-		err = ErrNotFound
-		return
-	}
-
-	for item := range iterable.Iter().Next() {
+func Last[K, V, Elem any](c Collection[K, V, Elem]) (last Elem, err error) {
+	for item := range c.Iter().Next() {
 		last = item
 	}
 
@@ -115,7 +107,7 @@ func Last[Elem any](iterable Iterable[Elem]) (last Elem, err error) {
 }
 
 // OrderBy returns a new collection ordered by the given comparator.
-func OrderBy[K, V any, Elem any](c Collection[K, V, Elem], comparator func(V, V) CompareResult) (r Collection[K, V, Elem]) {
+func OrderBy[K, V, Elem any](c Collection[K, V, Elem], comparator func(V, V) CompareResult) (r Collection[K, V, Elem]) {
 	// TODO: avoid double clone
 	r = c.Clone()
 	vals := r.Values()
