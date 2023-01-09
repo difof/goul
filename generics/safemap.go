@@ -7,13 +7,13 @@ import (
 )
 
 // SafeMap is a thread-safe map.
-type SafeMap[K comparable, V comparable] struct {
+type SafeMap[K comparable, V any] struct {
 	m    map[K]V
 	lock sync.RWMutex
 }
 
 // NewSafeMap creates a new SafeMap.
-func NewSafeMap[K comparable, V comparable](items ...Tuple[K, V]) *SafeMap[K, V] {
+func NewSafeMap[K comparable, V any](items ...Tuple[K, V]) *SafeMap[K, V] {
 	var m map[K]V
 
 	if items != nil && len(items) > 0 {
@@ -117,20 +117,6 @@ func (m *SafeMap[K, V]) HasKey(key K) bool {
 
 	_, ok := m.m[key]
 	return ok
-}
-
-// HasValue checks if the map has the value.
-func (m *SafeMap[K, V]) HasValue(val V) bool {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-
-	for _, v := range m.m {
-		if v == val {
-			return true
-		}
-	}
-
-	return false
 }
 
 // IsEmpty checks if the map is empty.
