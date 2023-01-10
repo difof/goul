@@ -27,6 +27,10 @@ func NewSafeMap[K comparable, V any](items ...Tuple[K, V]) *SafeMap[K, V] {
 	return &SafeMap[K, V]{m: m}
 }
 
+func CollectionAsSafeMap[K comparable, V any](c generics.Collection[K, V, Tuple[K, V]]) *SafeMap[K, V] {
+	return c.(*SafeMap[K, V])
+}
+
 // GetE gets a value from the map.
 func (m *SafeMap[K, V]) GetE(key K) (V, bool) {
 	m.lock.RLock()
@@ -173,6 +177,11 @@ func (m *SafeMap[K, V]) Clone() generics.Collection[K, V, Tuple[K, V]] {
 // Factory returns a new instance of the map.
 func (m *SafeMap[K, V]) Factory() generics.Collection[K, V, Tuple[K, V]] {
 	return NewSafeMap[K, V]()
+}
+
+func (m *SafeMap[K, V]) FactoryFrom(values []V) generics.Collection[K, V, Tuple[K, V]] {
+	panic("SafeMap doesn't support FactoryFrom")
+	return nil
 }
 
 func (m *SafeMap[K, V]) AsCollection() generics.Collection[K, V, Tuple[K, V]] {

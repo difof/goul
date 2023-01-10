@@ -79,7 +79,7 @@ func TestOrderBy(t *testing.T) {
 		t.Fatal("not ordered")
 	}
 
-	generics.ForEach(ordered.AsIterable(), func(i Tuple[int, int]) error {
+	generics.Each(ordered.AsIterable(), func(i Tuple[int, int]) error {
 		t.Log(i.Key(), i.Value())
 		return nil
 	})

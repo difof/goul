@@ -49,6 +49,9 @@ type Collection[K, V, Elem any] interface {
 	// Factory returns a new collection of the same type.
 	Factory() Collection[K, V, Elem]
 
+	// FactoryFrom returns a new collection of the same type, initialized with the given elements.
+	FactoryFrom([]V) Collection[K, V, Elem]
+
 	// Clone returns a copy of the collection.
 	Clone() Collection[K, V, Elem]
 

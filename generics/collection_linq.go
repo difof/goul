@@ -108,12 +108,13 @@ func Last[K, V, Elem any](c Collection[K, V, Elem]) (last Elem, err error) {
 
 // OrderBy returns a new collection ordered by the given comparator.
 func OrderBy[K, V, Elem any](c Collection[K, V, Elem], comparator func(V, V) CompareResult) (r Collection[K, V, Elem]) {
-	r = c.Clone()
-	vals := r.Values()
+	values := c.Clone().Values()
 
-	sort.Slice(vals, func(i, j int) bool {
-		return comparator(vals[i], vals[j]) == LessThan
+	sort.Slice(values, func(i, j int) bool {
+		return comparator(values[i], values[j]) == LessThan
 	})
+
+	r = c.FactoryFrom(values)
 
 	return
 }
@@ -212,8 +213,8 @@ func Where[K, V, Elem any](c Collection[K, V, Elem], fn func(Elem) (bool, error)
 	return
 }
 
-// ForEach iterates over the collection and calls the given function for each item.
-func ForEach[Elem any](iterable Iterable[Elem], fn func(Elem) error) error {
+// Each iterates over the collection and calls the given function for each item.
+func Each[Elem any](iterable Iterable[Elem], fn func(Elem) error) error {
 	it := iterable.Iter()
 	defer it.Close()
 

@@ -27,6 +27,10 @@ func NewSafeSliceN[V any](s, n int) *SafeSlice[V] {
 	return &SafeSlice[V]{slice: make([]V, s, n)}
 }
 
+func CollectionAsSafeSlice[V any](c generics.Collection[int, V, Tuple[int, V]]) *SafeSlice[V] {
+	return c.(*SafeSlice[V])
+}
+
 // Slice returns a new SafeSlice with the elements from start to end-1.
 func (s *SafeSlice[V]) Slice(start, end int) *SafeSlice[V] {
 	s.lock.RLock()
@@ -174,6 +178,10 @@ func (s *SafeSlice[V]) Compare(i, j Tuple[int, V], comp func(V, V) generics.Comp
 // Factory returns a new SafeSlice.
 func (s *SafeSlice[V]) Factory() generics.Collection[int, V, Tuple[int, V]] {
 	return NewSafeSlice[V]()
+}
+
+func (s *SafeSlice[V]) FactoryFrom(values []V) generics.Collection[int, V, Tuple[int, V]] {
+	return NewSafeSlice[V](values...)
 }
 
 func (s *SafeSlice[V]) AsCollection() generics.Collection[int, V, Tuple[int, V]] {
