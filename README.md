@@ -25,5 +25,5 @@ I will add features as I need them.
 ## TODO
 
 - All collections from GoDS
-- JSON serializable
-- Stringer
+- JSON serializable collections
+- Stringer collections
