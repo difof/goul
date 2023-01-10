@@ -31,26 +31,6 @@ func NewBot(token string, timeout int) (bot *Bot, err error) {
 	return
 }
 
-// Start starts polling for updates.
-func (b *Bot) Start(ctx context.Context, offset int) {
-	u := tgbotapi.NewUpdate(offset)
-	u.Timeout = b.timeout
-
-	updates := b.tg.GetUpdatesChan(u)
-
-	for {
-		select {
-		case <-ctx.Done():
-			b.tg.StopReceivingUpdates()
-			b.wg.Wait()
-			return
-		case update := <-updates:
-			b.wg.Add(1)
-			go b.handle(ctx, NewWrappedUpdate(update))
-		}
-	}
-}
-
 // Client returns the Telegram client.
 func (b *Bot) Client() *tgbotapi.BotAPI {
 	return b.tg
@@ -70,6 +50,26 @@ func (b *Bot) Off(updateType UpdateType, handler *UpdateHandler) {
 		if h.ID.String() == handler.ID.String() {
 			b.handlers[updateType] = append(handlers[:i], handlers[i+1:]...)
 			break
+		}
+	}
+}
+
+// Start starts polling for updates.
+func (b *Bot) Start(ctx context.Context, offset int) {
+	u := tgbotapi.NewUpdate(offset)
+	u.Timeout = b.timeout
+
+	updates := b.tg.GetUpdatesChan(u)
+
+	for {
+		select {
+		case <-ctx.Done():
+			b.tg.StopReceivingUpdates()
+			b.wg.Wait()
+			return
+		case update := <-updates:
+			b.wg.Add(1)
+			go b.handle(ctx, NewWrappedUpdate(update))
 		}
 	}
 }
