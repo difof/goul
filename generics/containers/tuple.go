@@ -1,26 +1,26 @@
 package containers
 
-type Tuple[T any, U any] struct {
-	First  T
-	Second U
+type Tuple[K any, V any] struct {
+	First  K
+	Second V
 }
 
 // NewTuple creates a new Tuple.
-func NewTuple[T any, U any](first T, second U) Tuple[T, U] {
-	return Tuple[T, U]{first, second}
+func NewTuple[K any, V any](first K, second V) Tuple[K, V] {
+	return Tuple[K, V]{first, second}
 }
 
 // Key returns the first value of the tuple.
-func (t Tuple[T, U]) Key() T {
+func (t Tuple[K, V]) Key() K {
 	return t.First
 }
 
 // Index is same as Key().
-func (t Tuple[T, U]) Index() T {
+func (t Tuple[K, V]) Index() K {
 	return t.Key()
 }
 
 // Value returns the second value of the tuple.
-func (t Tuple[T, U]) Value() U {
+func (t Tuple[K, V]) Value() V {
 	return t.Second
 }
