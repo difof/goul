@@ -7,6 +7,7 @@ import (
 	"sync"
 )
 
+// Bot is a Telegram bot using go-telegram-bot-api and long polling.
 type Bot struct {
 	tg       *tgbotapi.BotAPI
 	timeout  int
