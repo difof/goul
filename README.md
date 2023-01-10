@@ -21,3 +21,8 @@ I will add features as I need them.
 ## Usage
 
 `go get github.com/difof/goul`
+
+## TODO
+- All collections from GoDS
+- JSON serializable
+- Stringer
