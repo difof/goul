@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewSafeMap(t *testing.T) {
-	m := NewSafeMap[string, string]()
+	m := NewMap[string, string]()
 
 	funcBuilder := func(id int) {
 		key := "key"

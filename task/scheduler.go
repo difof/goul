@@ -23,7 +23,7 @@ const DefaultPrecision = time.Millisecond * 100
 //	s.Start()
 type Scheduler struct {
 	stopCh      chan struct{}
-	taskConfigs *containers.SafeMap[uuid.UUID, *TaskConfig]
+	taskConfigs *containers.Map[uuid.UUID, *TaskConfig]
 	wg          sync.WaitGroup
 	localTime   *time.Location
 	precision   time.Duration
@@ -36,7 +36,7 @@ type Scheduler struct {
 func NewScheduler(precision time.Duration) *Scheduler {
 	return &Scheduler{
 		stopCh:      make(chan struct{}, 1),
-		taskConfigs: containers.NewSafeMap[uuid.UUID, *TaskConfig](),
+		taskConfigs: containers.NewMap[uuid.UUID, *TaskConfig](),
 		localTime:   time.Local,
 		precision:   precision,
 	}

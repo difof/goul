@@ -14,7 +14,7 @@ func TestNewBroker(t *testing.T) {
 	go b.Start()
 
 	numSubs := 20
-	subReceived := containers.NewSafeMap[int, bool]()
+	subReceived := containers.NewMap[int, bool]()
 
 	// create and subscribe 3 clients:
 	subFactory := func(id int) {
@@ -66,7 +66,7 @@ func TestBroker_Unsubscribe(t *testing.T) {
 	go b.Start()
 
 	// id -> num received
-	receives := containers.NewSafeMap[int, int]()
+	receives := containers.NewMap[int, int]()
 
 	subFactory := func(id int, ch chan struct{}) {
 		for range ch {
