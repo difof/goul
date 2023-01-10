@@ -18,6 +18,17 @@ func FilterByChatType(t ChatType) UpdateFilter {
 	}
 }
 
+// FilterByCommand returns a filter that filters updates by command.
+func FilterByCommand(command string) UpdateFilter {
+	return func(update *WrappedUpdate) (bool, error) {
+		if !update.Message.IsCommand() {
+			return false, nil
+		}
+
+		return update.Message.Command() == command, nil
+	}
+}
+
 // AnyFilter combines multiple filters into one, which returns true if any of the filters return true.
 func AnyFilter(filters ...UpdateFilter) UpdateFilter {
 	return func(update *WrappedUpdate) (bool, error) {
