@@ -11,14 +11,17 @@ import (
 type Bot struct {
 	tg       *tgbotapi.BotAPI
 	timeout  int
-	wg       sync.WaitGroup
 	handlers map[UpdateType][]*UpdateHandler
+
+	closed chan struct{}
+	wg     sync.WaitGroup
 }
 
 func NewBot(token string, timeout int) (bot *Bot, err error) {
 	bot = &Bot{
 		timeout:  timeout,
 		handlers: make(map[UpdateType][]*UpdateHandler),
+		closed:   make(chan struct{}),
 	}
 
 	bot.tg, err = tgbotapi.NewBotAPI(token)
@@ -66,12 +69,18 @@ func (b *Bot) Start(ctx context.Context, offset int) {
 		case <-ctx.Done():
 			b.tg.StopReceivingUpdates()
 			b.wg.Wait()
+			close(b.closed)
 			return
 		case update := <-updates:
 			b.wg.Add(1)
 			go b.handle(ctx, NewWrappedUpdate(update))
 		}
 	}
+}
+
+// Wait waits for all handlers to finish after closing context.
+func (b *Bot) Wait() {
+	<-b.closed
 }
 
 // handle handles an update.
