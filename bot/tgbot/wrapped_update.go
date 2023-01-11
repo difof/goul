@@ -1,4 +1,4 @@
-package bot
+package tgbot
 
 import (
 	"fmt"

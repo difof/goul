@@ -1,4 +1,4 @@
-package bot
+package tgbot
 
 import "github.com/gofrs/uuid"
 
