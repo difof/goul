@@ -9,9 +9,11 @@ import (
 
 // Bot is a Telegram bot using go-telegram-bot-api and long polling.
 type Bot struct {
-	tg       *tgbotapi.BotAPI
-	timeout  int
-	handlers map[UpdateType][]*UpdateHandler
+	tg      *tgbotapi.BotAPI
+	timeout int
+
+	handlers    map[UpdateType][]*UpdateHandler
+	middlewares []UpdateCallback
 
 	closed chan struct{}
 	wg     sync.WaitGroup
@@ -19,9 +21,10 @@ type Bot struct {
 
 func NewBot(token string, timeout int) (bot *Bot, err error) {
 	bot = &Bot{
-		timeout:  timeout,
-		handlers: make(map[UpdateType][]*UpdateHandler),
-		closed:   make(chan struct{}),
+		timeout:     timeout,
+		handlers:    make(map[UpdateType][]*UpdateHandler),
+		middlewares: make([]UpdateCallback, 0),
+		closed:      make(chan struct{}),
 	}
 
 	bot.tg, err = tgbotapi.NewBotAPI(token)
@@ -57,6 +60,11 @@ func (b *Bot) Off(updateType UpdateType, handler *UpdateHandler) {
 	}
 }
 
+// Use adds a middleware to the bot.
+func (b *Bot) Use(handler UpdateCallback) {
+	b.middlewares = append(b.middlewares, handler)
+}
+
 // Start starts polling for updates.
 func (b *Bot) Start(ctx context.Context, offset int) {
 	u := tgbotapi.NewUpdate(offset)
@@ -87,6 +95,16 @@ func (b *Bot) Wait() {
 func (b *Bot) handle(ctx context.Context, update *WrappedUpdate) {
 	defer b.wg.Done()
 
+	uctx := NewUpdateContext(b, update, ctx)
+
+	for _, middleware := range b.middlewares {
+		err := middleware(uctx)
+		if err != nil {
+			log.Println("middleware error:", err)
+			return
+		}
+	}
+
 	for _, handler := range b.handlers[update.Type] {
 		ok, err := handler.ApplyFilters(update)
 		if err != nil {
@@ -98,7 +116,7 @@ func (b *Bot) handle(ctx context.Context, update *WrappedUpdate) {
 			continue
 		}
 
-		if err = handler.Callback(NewUpdateContext(b, update, ctx)); err != nil {
+		if err = handler.Callback(uctx); err != nil {
 			log.Printf("error handling update [%s]: %v", update, err)
 		}
 	}
