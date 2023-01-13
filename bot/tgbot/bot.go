@@ -119,6 +119,10 @@ func (b *Bot) handle(ctx context.Context, update *WrappedUpdate) {
 		if err = handler.Callback(uctx); err != nil {
 			log.Printf("error handling update [%s]: %v", update, err)
 		}
+
+		if uctx.propagationStopped {
+			break
+		}
 	}
 }
 

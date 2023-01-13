@@ -8,8 +8,9 @@ import (
 type UpdateContext struct {
 	*WrappedUpdate
 
-	context context.Context
-	bot     *Bot
+	context            context.Context
+	bot                *Bot
+	propagationStopped bool
 }
 
 // NewUpdateContext creates a new update context.
@@ -29,4 +30,9 @@ func (ctx UpdateContext) Context() context.Context {
 // Client returns the Telegram client.
 func (ctx UpdateContext) Client() *tgbotapi.BotAPI {
 	return ctx.bot.tg
+}
+
+// StopPropagation stops the propagation of the update to the next handlers.
+func (ctx UpdateContext) StopPropagation() {
+	ctx.propagationStopped = true
 }
