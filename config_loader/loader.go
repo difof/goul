@@ -85,7 +85,7 @@ func Load(opts *LoaderOpts, config Configuration) error {
 	switch filepath.Ext(opts.configPath) {
 	case ".json":
 		err = loadJSON(readBytes, config)
-	case ".yaml":
+	case ".yaml", ".yml":
 		err = loadYAML(readBytes, config)
 	default:
 		err = fmt.Errorf("unsupported config file format: %s", opts.configPath)
