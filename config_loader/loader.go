@@ -126,6 +126,7 @@ func setDefaults(config Configuration) {
 }
 
 func readEnvOverrides(prefix string, config Configuration) {
+	// TODO: add .env file support, but commandline env vars should override .env file vars
 	foreachField(config, func(field reflect.StructField) {
 		fieldName := field.Name
 		envName := field.Tag.Get("env")
