@@ -3,9 +3,13 @@ package biof
 import (
 	"bytes"
 	"encoding/binary"
+	binary2 "github.com/difof/goul/binary"
 	"hash/fnv"
 	"math"
 )
+
+var bp4 = binary2.BytePool4()
+var bp8 = binary2.BytePool8()
 
 func headerHash(header []byte) (hash uint64) {
 	h := fnv.New64a()
@@ -39,7 +43,9 @@ func ByteToStringPadded(b []byte) string {
 
 // EncodeFloat32 encodes a float32 value to a byte slice.
 func EncodeFloat32(f float32) []byte {
-	b := make([]byte, 4)
+	b := bp4.Get().([]byte)
+	defer bp4.Put(b)
+
 	binary.LittleEndian.PutUint32(b, math.Float32bits(f))
 
 	return b
@@ -52,7 +58,9 @@ func DecodeFloat32(b []byte) float32 {
 
 // EncodeFloat64 encodes a float64 value to a byte slice.
 func EncodeFloat64(f float64) []byte {
-	b := make([]byte, 8)
+	b := bp8.Get().([]byte)
+	defer bp8.Put(b)
+
 	binary.LittleEndian.PutUint64(b, math.Float64bits(f))
 
 	return b
