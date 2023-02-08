@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
 
 type Column struct {
@@ -38,7 +39,7 @@ func (s RowSpec) RowSize() (size uint64) {
 }
 
 type Row interface {
-	Encode() ([]byte, error)
+	Encode([]byte) error
 	Decode([]byte) error
 	Columns() RowSpec
 }
@@ -65,6 +66,15 @@ type BIOF struct {
 
 	contentOffset uint64
 	file          *os.File
+	pool          sync.Pool
+}
+
+func makePool(n int) sync.Pool {
+	return sync.Pool{
+		New: func() interface{} {
+			return make([]byte, n)
+		},
+	}
 }
 
 // Open opens a BIOF file.
@@ -136,6 +146,8 @@ func Open(path string, version uint8) (b *BIOF, err error) {
 	// calculate content offset
 	b.contentOffset = uint64(2 + 1 + 8 + 4 + headerSize)
 
+	b.pool = makePool(int(b.spec.RowSize()))
+
 	return
 }
 
@@ -144,6 +156,7 @@ func Create(path string, version uint8, header RowSpec) (b *BIOF, err error) {
 	b = &BIOF{
 		version: version,
 		spec:    header,
+		pool:    makePool(int(header.RowSize())),
 	}
 
 	buf := new(bytes.Buffer)
@@ -263,8 +276,10 @@ func (b *BIOF) NumRows() (numRows uint64, err error) {
 
 // Append appends a row to the BIOF file.
 func (b *BIOF) Append(row Row) (err error) {
-	var buf []byte
-	if buf, err = row.Encode(); err != nil {
+	buf := b.pool.Get().([]byte)
+	defer b.pool.Put(buf)
+
+	if err = row.Encode(buf); err != nil {
 		err = fmt.Errorf("failed to encode row: %w", err)
 		return
 	}
@@ -280,15 +295,19 @@ func (b *BIOF) Append(row Row) (err error) {
 // BulkAppend appends a bulk of rows to the BIOF file.
 func (b *BIOF) BulkAppend(rows []Row) (err error) {
 	buf := new(bytes.Buffer)
+	buf.Grow(len(rows) * int(b.spec.RowSize()))
+
+	tmp := b.pool.Get().([]byte)
+	defer b.pool.Put(tmp)
 
 	for _, row := range rows {
-		var rowBuf []byte
-		if rowBuf, err = row.Encode(); err != nil {
+
+		if err = row.Encode(tmp); err != nil {
 			err = fmt.Errorf("failed to encode row: %w", err)
 			return
 		}
 
-		if _, err = buf.Write(rowBuf); err != nil {
+		if _, err = buf.Write(tmp); err != nil {
 			err = fmt.Errorf("failed to write row: %w", err)
 			return
 		}
@@ -314,7 +333,9 @@ func (b *BIOF) ReadAt(row Row, pos uint64) (err error) {
 	}
 
 	// read row
-	rowBytes := make([]byte, rowSize)
+	rowBytes := b.pool.Get().([]byte)
+	defer b.pool.Put(rowBytes)
+
 	if _, err = b.file.Read(rowBytes); err != nil {
 		err = fmt.Errorf("failed to read row: %w", err)
 		return
@@ -347,6 +368,7 @@ func (b *BIOF) BulkRead(rows []Row, pos uint64) (n int, err error) {
 	}
 
 	// read rows
+	// TODO: pool this buffer somehow. it's rough since the size is variable
 	rowBytes := make([]byte, int(rowSize)*len(rows))
 	if _, err = b.file.Read(rowBytes); err != nil {
 		err = fmt.Errorf("failed to read rows: %w", err)

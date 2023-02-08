@@ -1,45 +1,32 @@
 package biof
 
 import (
-	"bytes"
 	"encoding/binary"
-	"errors"
 	"testing"
 )
 
 type BIOFTestRow struct {
-	Symbol  string
-	PriceE8 uint64
+	Symbol string
+	Price  uint32
 }
 
 func (h *BIOFTestRow) Columns() RowSpec {
 	return NewRowSpec(
 		NewColumn("Symbol", "ascii", 8),
-		NewColumn("PriceE8", "uint64", 8),
+		NewColumn("Price", "uint32", 4),
 	)
 }
 
-func (h *BIOFTestRow) Encode() ([]byte, error) {
-	buf := new(bytes.Buffer)
+func (h *BIOFTestRow) Encode(buf []byte) error {
+	copy(buf[:8], StringToBytePadded(h.Symbol, 8))
+	binary.LittleEndian.PutUint32(buf[8:], h.Price)
 
-	if _, err := buf.Write(StringToBytePadded(h.Symbol, 8)); err != nil {
-		return nil, err
-	}
-
-	if err := binary.Write(buf, binary.LittleEndian, h.PriceE8); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
+	return nil
 }
 
 func (h *BIOFTestRow) Decode(data []byte) error {
-	if len(data) < 16 {
-		return errors.New("invalid data length")
-	}
-
-	h.Symbol = PaddedByteToString(data[:8])
-	h.PriceE8 = binary.LittleEndian.Uint64(data[8:])
+	h.Symbol = ByteToStringPadded(data[:8])
+	h.Price = binary.LittleEndian.Uint32(data[8:])
 
 	return nil
 }
@@ -75,19 +62,12 @@ func TestBulkAppend(t *testing.T) {
 		t.Fatalf("failed to open BIOF file: %v", err)
 	}
 
-	rows := []Row{
-		&BIOFTestRow{
-			Symbol:  "AAPL",
-			PriceE8: 100000000,
-		},
-		&BIOFTestRow{
-			Symbol:  "MSFT",
-			PriceE8: 200000000,
-		},
-		&BIOFTestRow{
-			Symbol:  "GOOG",
-			PriceE8: 300000000,
-		},
+	rows := []Row{}
+	for i := 0; i < 10000000; i++ {
+		rows = append(rows, &BIOFTestRow{
+			Symbol: "MSFT",
+			Price:  uint32(i),
+		})
 	}
 
 	if err = b.BulkAppend(rows); err != nil {
@@ -97,11 +77,11 @@ func TestBulkAppend(t *testing.T) {
 	// read row 1
 	row := new(BIOFTestRow)
 
-	if err = b.ReadAt(row, 1); err != nil {
+	if err = b.ReadAt(row, 100); err != nil {
 		t.Fatalf("failed to read row: %v", err)
 	}
 
-	if row.Symbol != "MSFT" {
+	if row.Price != 100 {
 		t.Fatalf("invalid symbol: %v", row.Symbol)
 	}
 

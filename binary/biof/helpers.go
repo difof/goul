@@ -30,7 +30,7 @@ func StringToBytePadded(s string, length int) []byte {
 	return b
 }
 
-// PaddedByteToString converts a null padded byte slice to a string.
-func PaddedByteToString(b []byte) string {
+// ByteToStringPadded converts a null padded byte slice to a string.
+func ByteToStringPadded(b []byte) string {
 	return string(bytes.TrimRight(b, "\x00"))
 }
