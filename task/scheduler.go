@@ -1,4 +1,4 @@
-package ticker
+package task
 
 import (
 	"github.com/difof/goul/generics/containers"

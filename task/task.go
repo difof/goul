@@ -1,6 +1,4 @@
-//
-
-package ticker
+package task
 
 import (
 	"github.com/gofrs/uuid"
