@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	binary2 "github.com/difof/goul/binary"
 	"io"
 	"os"
 	"sync"
@@ -67,14 +68,6 @@ type BIOF struct {
 	contentOffset uint64
 	file          *os.File
 	pool          sync.Pool
-}
-
-func makePool(n int) sync.Pool {
-	return sync.Pool{
-		New: func() interface{} {
-			return make([]byte, n)
-		},
-	}
 }
 
 // Open opens a BIOF file.
@@ -146,7 +139,7 @@ func Open(path string, version uint8) (b *BIOF, err error) {
 	// calculate content offset
 	b.contentOffset = uint64(2 + 1 + 8 + 4 + headerSize)
 
-	b.pool = makePool(int(b.spec.RowSize()))
+	b.pool = binary2.BytePoolN(int(b.spec.RowSize()))
 
 	return
 }
@@ -156,7 +149,7 @@ func Create(path string, version uint8, header RowSpec) (b *BIOF, err error) {
 	b = &BIOF{
 		version: version,
 		spec:    header,
-		pool:    makePool(int(header.RowSize())),
+		pool:    binary2.BytePoolN(int(header.RowSize())),
 	}
 
 	buf := new(bytes.Buffer)
