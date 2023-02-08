@@ -2,7 +2,9 @@ package biof
 
 import (
 	"bytes"
+	"encoding/binary"
 	"hash/fnv"
+	"math"
 )
 
 func headerHash(header []byte) (hash uint64) {
@@ -33,4 +35,30 @@ func StringToBytePadded(s string, length int) []byte {
 // ByteToStringPadded converts a null padded byte slice to a string.
 func ByteToStringPadded(b []byte) string {
 	return string(bytes.TrimRight(b, "\x00"))
+}
+
+// EncodeFloat32 encodes a float32 value to a byte slice.
+func EncodeFloat32(f float32) []byte {
+	b := make([]byte, 4)
+	binary.LittleEndian.PutUint32(b, math.Float32bits(f))
+
+	return b
+}
+
+// DecodeFloat32 decodes a float32 value from a byte slice.
+func DecodeFloat32(b []byte) float32 {
+	return math.Float32frombits(binary.LittleEndian.Uint32(b))
+}
+
+// EncodeFloat64 encodes a float64 value to a byte slice.
+func EncodeFloat64(f float64) []byte {
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, math.Float64bits(f))
+
+	return b
+}
+
+// DecodeFloat64 decodes a float64 value from a byte slice.
+func DecodeFloat64(b []byte) float64 {
+	return math.Float64frombits(binary.LittleEndian.Uint64(b))
 }
