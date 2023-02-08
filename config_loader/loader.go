@@ -21,7 +21,9 @@ type Configuration interface {
 	SetField(field string, value interface{})
 }
 
-// LoaderOpts
+type ConfigOption func(*LoaderOpts)
+
+// LoaderOpts is a struct that contains options for the config loader.
 type LoaderOpts struct {
 	// configPath is the path to the config file with either .json or .yaml extension.
 	configPath string
@@ -33,27 +35,25 @@ type LoaderOpts struct {
 	errorIfNotFound bool
 }
 
-// NewLoaderOpts returns a new LoaderOpts instance.
-func NewLoaderOpts() *LoaderOpts {
-	return &LoaderOpts{}
-}
-
 // ConfigPath sets the path to the config file.
-func (o *LoaderOpts) ConfigPath(path string) *LoaderOpts {
-	o.configPath = path
-	return o
+func ConfigPath(path string) ConfigOption {
+	return func(o *LoaderOpts) {
+		o.configPath = path
+	}
 }
 
 // EnvPrefix sets the prefix for environment variables. Will capitalize the prefix.
-func (o *LoaderOpts) EnvPrefix(prefix string) *LoaderOpts {
-	o.envPrefix = strings.ToUpper(prefix)
-	return o
+func EnvPrefix(prefix string) ConfigOption {
+	return func(o *LoaderOpts) {
+		o.envPrefix = strings.ToUpper(prefix)
+	}
 }
 
 // ErrorIfNotFound sets the flag that determines whether an error should be returned if the config file is not found.
-func (o *LoaderOpts) ErrorIfNotFound(errorIfNotFound bool) *LoaderOpts {
-	o.errorIfNotFound = errorIfNotFound
-	return o
+func ErrorIfNotFound(errorIfNotFound bool) ConfigOption {
+	return func(o *LoaderOpts) {
+		o.errorIfNotFound = errorIfNotFound
+	}
 }
 
 // Load loads the configuration from the given config file.
@@ -65,7 +65,13 @@ func (o *LoaderOpts) ErrorIfNotFound(errorIfNotFound bool) *LoaderOpts {
 // - All fields must be exported.
 //
 // - Fields without env tag will be uppercase and used as environment variable name.
-func Load(opts *LoaderOpts, config Configuration) error {
+
+func Load(config Configuration, options ...ConfigOption) error {
+	opts := &LoaderOpts{}
+	for _, option := range options {
+		option(opts)
+	}
+
 	setDefaults(config)
 	defer readEnvOverrides(opts.envPrefix, config)
 
