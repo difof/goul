@@ -40,13 +40,13 @@ func TestLoad(t *testing.T) {
 	b, err := Load[*TestRow, TestRow]("test.sbt", 1)
 
 	if err != nil {
-		t.Fatalf("failed to open SBT file: %v", err)
+		t.Fatalf("failed to open Container file: %v", err)
 	}
 
 	t.Logf("file size: %v bytes | num rows: %v", b.Size(), b.NumRows())
 
 	if err = b.Close(); err != nil {
-		t.Fatalf("failed to close SBT file: %v", err)
+		t.Fatalf("failed to close Container file: %v", err)
 	}
 }
 
@@ -54,7 +54,7 @@ func TestBulkAppend(t *testing.T) {
 	b, err := Load[*TestRow]("test.sbt", 1)
 
 	if err != nil {
-		t.Fatalf("failed to open SBT file: %v", err)
+		t.Fatalf("failed to open Container file: %v", err)
 	}
 
 	sz := 1_000_000_000
@@ -82,7 +82,7 @@ func TestBulkAppend(t *testing.T) {
 	t.Logf("file size: %v bytes | num rows: %v (%v)", b.Size(), b.NumRows(), total)
 
 	if err = b.Close(); err != nil {
-		t.Fatalf("failed to close SBT file: %v", err)
+		t.Fatalf("failed to close Container file: %v", err)
 	}
 }
 
@@ -90,7 +90,7 @@ func TestPrint(t *testing.T) {
 	b, err := OpenRead[*TestRow, TestRow]("test.sbt", 1)
 
 	if err != nil {
-		t.Fatalf("failed to open SBT file: %v", err)
+		t.Fatalf("failed to open Container file: %v", err)
 	}
 
 	b.Print(os.Stdout, 0, 10, func(row *TestRow) []any {
@@ -98,6 +98,6 @@ func TestPrint(t *testing.T) {
 	})
 
 	if err = b.Close(); err != nil {
-		t.Fatalf("failed to close SBT file: %v", err)
+		t.Fatalf("failed to close Container file: %v", err)
 	}
 }
