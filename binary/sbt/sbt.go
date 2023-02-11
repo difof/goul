@@ -7,6 +7,7 @@ import (
 	"fmt"
 	binary2 "github.com/difof/goul/binary"
 	"github.com/difof/goul/generics"
+	"github.com/difof/goul/generics/containers"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"io"
 	"os"
@@ -434,6 +435,11 @@ func (c *Container[P, RowType]) ReadAt(row P, pos uint64) (err error) {
 func (c *Container[P, RowType]) BulkRead(rows []P, pos uint64) (n int, err error) {
 	rowSize := c.spec.RowSize()
 	offset := c.contentOffset + pos*uint64(rowSize)
+	byteSize := uint64(int(rowSize) * len(rows))
+
+	if byteSize >= c.Size() {
+		byteSize = c.Size() - offset
+	}
 
 	// seek file
 	if _, err = c.file.Seek(int64(offset), io.SeekStart); err != nil {
@@ -442,8 +448,7 @@ func (c *Container[P, RowType]) BulkRead(rows []P, pos uint64) (n int, err error
 	}
 
 	// read rows
-	// TODO: pool this buffer somehow. it's rough since the size is variable
-	rowBytes := make([]byte, int(rowSize)*len(rows))
+	rowBytes := make([]byte, byteSize)
 	if _, err = c.file.Read(rowBytes); err != nil {
 		err = fmt.Errorf("failed to read rows: %w", err)
 		return
@@ -461,6 +466,10 @@ func (c *Container[P, RowType]) BulkRead(rows []P, pos uint64) (n int, err error
 
 		byteOffset := n * int(rowSize)
 		byteEnd := byteOffset + int(rowSize)
+
+		if byteEnd > len(rowBytes) {
+			break
+		}
 
 		decoder.Reset(rowBytes[byteOffset:byteEnd])
 
@@ -520,4 +529,34 @@ func (c *Container[P, RowType]) Print(
 	t.Render()
 
 	return nil
+}
+
+func (c *Container[P, RowType]) Iter() *generics.Iterator[containers.Tuple[int, P]] {
+	return generics.NewIterator[containers.Tuple[int, P]](c)
+}
+
+func (c *Container[P, RowType]) IterHandler(iter *generics.Iterator[containers.Tuple[int, P]]) {
+	go func() {
+		// TODO: bucket load
+		var r P
+
+		for i := 0; i < int(c.NumRows()); i++ {
+			r = any(r).(Row).Factory().(P)
+			if err := c.ReadAt(r, uint64(i)); err != nil {
+				return
+			}
+
+			select {
+			case <-iter.Done():
+				return
+			case iter.NextChannel() <- containers.NewTuple(i, r):
+			}
+		}
+
+		iter.IterationDone()
+	}()
+}
+
+func (c *Container[P, RowType]) AsIterable() generics.Iterable[containers.Tuple[int, P]] {
+	return c
 }
