@@ -1,4 +1,4 @@
-package biof
+package sbt
 
 import (
 	"bytes"
@@ -12,87 +12,33 @@ import (
 	"sync"
 )
 
-type Column struct {
-	Name string         `json:"name"`
-	Type BIOFColumnType `json:"type"`
-	Size uint8          `json:"size"`
-}
-
-// NewColumn creates a new column.
-//
-// If size is not specified, it will be calculated based on the type.
-func NewColumn(name string, typ BIOFColumnType, size ...uint8) (c Column) {
-	c = Column{
-		Name: name,
-		Type: typ,
-	}
-
-	if len(size) > 0 {
-		c.Size = size[0]
-	} else {
-		switch typ {
-		case ColumnTypeString:
-			c.Size = 8
-		case ColumnTypeBinary:
-			c.Size = 64
-		case ColumnTypeBool:
-			c.Size = 1
-		case ColumnTypeInt8:
-			c.Size = 1
-		case ColumnTypeInt16:
-			c.Size = 2
-		case ColumnTypeInt32:
-			c.Size = 4
-		case ColumnTypeInt64:
-			c.Size = 8
-		case ColumnTypeUInt8:
-			c.Size = 1
-		case ColumnTypeUInt16:
-			c.Size = 2
-		case ColumnTypeUInt32:
-			c.Size = 4
-		case ColumnTypeUInt64:
-			c.Size = 8
-		case ColumnTypeFloat:
-			c.Size = 4
-		case ColumnTypeDouble:
-			c.Size = 8
-		}
-	}
-
-	return
-}
-
-type RowSpec []Column
-
-func NewRowSpec(columns ...Column) (r RowSpec) {
-	r = make([]Column, len(columns))
-	copy(r, columns)
-
-	return
-}
-
-// RowSize returns the size of a row.
-func (s RowSpec) RowSize() (size uint64) {
-	for _, c := range s {
-		size += uint64(c.Size)
-	}
-
-	return
-}
-
-type Row interface {
-	Factory() Row
-	Encode([]byte) error
-	Decode([]byte) error
-	Columns() RowSpec
-}
-
 const MagicNumber uint16 = 0xB10F
 
-// BIOF is a Binary IO Format data type.
+func rowTypeToInterface[RowType any](row RowType) (Row, error) {
+	r, ok := any(row).(Row)
+	if !ok {
+		return nil, fmt.Errorf("row does not implement Row interface")
+	}
+
+	if r == nil {
+		return nil, fmt.Errorf("row is nil")
+	}
+
+	return r, nil
+}
+
+func instanceOfRow[RowType any]() Row {
+	var v RowType
+	r, ok := any(v).(Row)
+	if !ok {
+		return nil
+	}
+	return r.Factory()
+}
+
+// SBT is a serial binary table data type.
 //
-// The format contains a header table and contents.
+// The format contains a header and rows of contents.
 //
 // Header defines the data types and column formats.
 //
@@ -101,9 +47,7 @@ const MagicNumber uint16 = 0xB10F
 // It's useful for storing typed streams of data fast and efficiently.
 //
 // It's not thread-safe.
-//
-// Implements io.Closer.
-type BIOF[RowType any] struct {
+type SBT[RowType any] struct {
 	version    uint8
 	headerHash uint64
 	spec       RowSpec
@@ -113,16 +57,16 @@ type BIOF[RowType any] struct {
 	pool          sync.Pool
 	filename      string
 	numRows       uint64
+	headerSize    int32
 }
 
-// Open opens a BIOF file.
-func Open[RowType any](filename string, version uint8) (b *BIOF[RowType], err error) {
-	b = &BIOF[RowType]{
+func open[RowType any](filename string, version uint8, mode int, perm os.FileMode) (b *SBT[RowType], err error) {
+	b = &SBT[RowType]{
 		filename: filepath.Base(filename),
 	}
 
 	// open file
-	b.file, err = os.OpenFile(filename, os.O_RDWR, 0644)
+	b.file, err = os.OpenFile(filename, mode, perm)
 	if err != nil {
 		err = fmt.Errorf("failed to open file: %w", err)
 		return
@@ -158,14 +102,13 @@ func Open[RowType any](filename string, version uint8) (b *BIOF[RowType], err er
 	}
 
 	// read header size
-	var headerSize uint32
-	if err = binary.Read(b.file, binary.LittleEndian, &headerSize); err != nil {
+	if err = binary.Read(b.file, binary.LittleEndian, &b.headerSize); err != nil {
 		err = fmt.Errorf("failed to read header size: %w", err)
 		return
 	}
 
 	// read header
-	headerBytes := make([]byte, headerSize)
+	headerBytes := make([]byte, b.headerSize)
 	if _, err = b.file.Read(headerBytes); err != nil {
 		err = fmt.Errorf("failed to read header: %w", err)
 		return
@@ -183,7 +126,7 @@ func Open[RowType any](filename string, version uint8) (b *BIOF[RowType], err er
 		return
 	}
 
-	b.contentOffset = uint64(2 + 1 + 8 + 4 + headerSize)
+	b.contentOffset = uint64(2 + 1 + 8 + 4 + b.headerSize)
 	b.pool = binary2.BytePoolN(int(b.spec.RowSize()))
 	if b.numRows, err = b.calculateNumRows(); err != nil {
 		err = fmt.Errorf("failed to calculate number of rows: %w", err)
@@ -193,17 +136,27 @@ func Open[RowType any](filename string, version uint8) (b *BIOF[RowType], err er
 	return
 }
 
-// Create creates a BIOF file.
-func Create[RowType any](filename string, version uint8, row RowType) (b *BIOF[RowType], err error) {
-	var header RowSpec
-	if r, ok := any(row).(Row); !ok {
-		err = fmt.Errorf("row does not implement Row interface")
+// OpenRead opens a SBT file for reading.
+func OpenRead[RowType any](filename string, version uint8) (b *SBT[RowType], err error) {
+	return open[RowType](filename, version, os.O_RDONLY, 0666)
+}
+
+// Open opens a SBT file.
+func Open[RowType any](filename string, version uint8) (b *SBT[RowType], err error) {
+	return open[RowType](filename, version, os.O_RDWR, 0666)
+}
+
+// Create creates a SBT file.
+func Create[RowType any](filename string, version uint8) (b *SBT[RowType], err error) {
+	ri := instanceOfRow[RowType]()
+	if ri == nil {
+		err = fmt.Errorf("failed to create instance of row")
 		return
-	} else {
-		header = r.Columns()
 	}
 
-	b = &BIOF[RowType]{
+	header := ri.Columns()
+
+	b = &SBT[RowType]{
 		version:  version,
 		spec:     header,
 		pool:     binary2.BytePoolN(int(header.RowSize())),
@@ -235,6 +188,7 @@ func Create[RowType any](filename string, version uint8, row RowType) (b *BIOF[R
 
 	// hash header
 	b.headerHash = headerHash(headerBytes)
+	b.headerSize = int32(len(headerBytes))
 
 	// write header hash
 	if err = binary.Write(buf, binary.LittleEndian, b.headerHash); err != nil {
@@ -273,13 +227,22 @@ func Create[RowType any](filename string, version uint8, row RowType) (b *BIOF[R
 	return
 }
 
-// Filename returns the filename of the BIOF file.
-func (b *BIOF[RowType]) Filename() string {
+// Load opens or creates a SBT file.
+func Load[RowType any](filename string, version uint8) (b *SBT[RowType], err error) {
+	if _, err = os.Stat(filename); os.IsNotExist(err) {
+		return Create[RowType](filename, version)
+	}
+
+	return Open[RowType](filename, version)
+}
+
+// Filename returns the filename of the SBT file.
+func (b *SBT[RowType]) Filename() string {
 	return b.filename
 }
 
-// Close closes the BIOF file.
-func (b *BIOF[RowType]) Close() (err error) {
+// Close closes the SBT file.
+func (b *SBT[RowType]) Close() (err error) {
 	if b.file != nil {
 		err = b.file.Close()
 	}
@@ -287,18 +250,18 @@ func (b *BIOF[RowType]) Close() (err error) {
 	return
 }
 
-// Version returns the version of the BIOF file.
-func (b *BIOF[RowType]) Version() uint8 {
+// Version returns the version of the SBT file.
+func (b *SBT[RowType]) Version() uint8 {
 	return b.version
 }
 
-// Header returns the header of the BIOF file.
-func (b *BIOF[RowType]) Header() RowSpec {
+// Header returns the header of the SBT file.
+func (b *SBT[RowType]) Header() RowSpec {
 	return b.spec
 }
 
-// SeekContent seeks to the content section of the BIOF file.
-func (b *BIOF[RowType]) SeekContent() (err error) {
+// SeekContent seeks to the content section of the SBT file.
+func (b *SBT[RowType]) SeekContent() (err error) {
 	if _, err = b.file.Seek(int64(b.contentOffset), io.SeekStart); err != nil {
 		err = fmt.Errorf("failed to seek to content: %w", err)
 		return
@@ -307,8 +270,8 @@ func (b *BIOF[RowType]) SeekContent() (err error) {
 	return
 }
 
-// SeekEnd seeks to the end of the BIOF file.
-func (b *BIOF[RowType]) SeekEnd() (err error) {
+// SeekEnd seeks to the end of the SBT file.
+func (b *SBT[RowType]) SeekEnd() (err error) {
 	if _, err = b.file.Seek(0, io.SeekEnd); err != nil {
 		err = fmt.Errorf("failed to seek to end: %w", err)
 		return
@@ -317,34 +280,31 @@ func (b *BIOF[RowType]) SeekEnd() (err error) {
 	return
 }
 
-// calculateNumRows returns the number of rows in the BIOF file.
-func (b *BIOF[RowType]) calculateNumRows() (numRows uint64, err error) {
+// calculateNumRows returns the number of rows in the SBT file.
+func (b *SBT[RowType]) calculateNumRows() (numRows uint64, err error) {
 	var size int64
 	if size, err = b.file.Seek(0, io.SeekEnd); err != nil {
 		err = fmt.Errorf("failed to seek to end: %w", err)
 		return
 	}
 
-	numRows = uint64(size-int64(b.contentOffset)) / b.spec.RowSize()
+	numRows = uint64(size-int64(b.contentOffset)) / uint64(b.spec.RowSize())
 
 	return
 }
 
 // NumRows returns the number of rows.
-func (b *BIOF[RowType]) NumRows() uint64 {
+func (b *SBT[RowType]) NumRows() uint64 {
 	return b.numRows
 }
 
-func rowTypeToInterface[RowType any](row RowType) (Row, error) {
-	r, ok := any(row).(Row)
-	if !ok {
-		return nil, fmt.Errorf("row does not implement Row interface")
-	}
-	return r, nil
+// Size returns file size
+func (b *SBT[RowType]) Size() uint64 {
+	return (b.numRows * uint64(b.spec.RowSize())) + uint64(b.headerSize+1+4+4)
 }
 
-// Append appends a row to the BIOF file.
-func (b *BIOF[RowType]) Append(row RowType) (err error) {
+// Append appends a row to the SBT file.
+func (b *SBT[RowType]) Append(row RowType) (err error) {
 	buf := b.pool.Get().([]byte)
 	defer b.pool.Put(buf)
 
@@ -355,7 +315,7 @@ func (b *BIOF[RowType]) Append(row RowType) (err error) {
 		return
 	}
 
-	if err = r.Encode(buf); err != nil {
+	if err = r.Encode(NewEncoder(buf)); err != nil {
 		err = fmt.Errorf("failed to encode row: %w", err)
 		return
 	}
@@ -370,13 +330,15 @@ func (b *BIOF[RowType]) Append(row RowType) (err error) {
 	return
 }
 
-// BulkAppend appends a bulk of rows to the BIOF file.
-func (b *BIOF[RowType]) BulkAppend(rows []RowType) (err error) {
+// BulkAppend appends a bulk of rows to the SBT file.
+func (b *SBT[RowType]) BulkAppend(rows []RowType) (err error) {
 	buf := new(bytes.Buffer)
 	buf.Grow(len(rows) * int(b.spec.RowSize()))
 
 	tmp := b.pool.Get().([]byte)
 	defer b.pool.Put(tmp)
+
+	encoder := NewEncoder(nil)
 
 	for _, row := range rows {
 		var r Row
@@ -385,7 +347,9 @@ func (b *BIOF[RowType]) BulkAppend(rows []RowType) (err error) {
 			return
 		}
 
-		if err = r.Encode(tmp); err != nil {
+		encoder.Reset(tmp)
+
+		if err = r.Encode(encoder); err != nil {
 			err = fmt.Errorf("failed to encode row: %w", err)
 			return
 		}
@@ -407,15 +371,14 @@ func (b *BIOF[RowType]) BulkAppend(rows []RowType) (err error) {
 }
 
 // ReadAt reads a row at a specified position.
-func (b *BIOF[RowType]) ReadAt(row RowType, pos uint64) (err error) {
+func (b *SBT[RowType]) ReadAt(row RowType, pos uint64) (err error) {
 	var r Row
 	if r, err = rowTypeToInterface(row); err != nil {
 		err = fmt.Errorf("failed to convert row to interface: %w", err)
 		return
 	}
 
-	rowSize := b.spec.RowSize()
-	offset := b.contentOffset + pos*rowSize
+	offset := b.contentOffset + pos*uint64(b.spec.RowSize())
 
 	// seek file
 	if _, err = b.file.Seek(int64(offset), io.SeekStart); err != nil {
@@ -433,7 +396,7 @@ func (b *BIOF[RowType]) ReadAt(row RowType, pos uint64) (err error) {
 	}
 
 	// decode row
-	if err = r.Decode(rowBytes); err != nil {
+	if err = r.Decode(NewDecoder(rowBytes)); err != nil {
 		err = fmt.Errorf("failed to decode row: %w", err)
 		return
 	}
@@ -448,10 +411,9 @@ func (b *BIOF[RowType]) ReadAt(row RowType, pos uint64) (err error) {
 // Use NumRows and pos 0 to read all rows.
 //
 // returns the number of rows read and an error.
-func (b *BIOF[RowType]) BulkRead(rows []RowType, pos uint64) (n int, err error) {
-
+func (b *SBT[RowType]) BulkRead(rows []RowType, pos uint64) (n int, err error) {
 	rowSize := b.spec.RowSize()
-	offset := b.contentOffset + pos*rowSize
+	offset := b.contentOffset + pos*uint64(rowSize)
 
 	// seek file
 	if _, err = b.file.Seek(int64(offset), io.SeekStart); err != nil {
@@ -467,6 +429,8 @@ func (b *BIOF[RowType]) BulkRead(rows []RowType, pos uint64) (n int, err error) 
 		return
 	}
 
+	decoder := NewDecoder(nil)
+
 	// decode rows
 	for i := 0; i < len(rows); i++ {
 		var r Row
@@ -478,7 +442,9 @@ func (b *BIOF[RowType]) BulkRead(rows []RowType, pos uint64) (n int, err error) 
 		byteOffset := i * int(rowSize)
 		byteEnd := byteOffset + int(rowSize)
 
-		if err = r.Decode(rowBytes[byteOffset:byteEnd]); err != nil {
+		decoder.Reset(rowBytes[byteOffset:byteEnd])
+
+		if err = r.Decode(decoder); err != nil {
 			err = fmt.Errorf("failed to decode row: %w", err)
 			return
 		}

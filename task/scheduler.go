@@ -86,6 +86,8 @@ func (s *Scheduler) Stop() {
 	s.running = false
 }
 
+// TODO: add linear timing support
+
 // Every begins configuring a task. supply zero or one intervals. no intervals will be counted as 1
 func (s *Scheduler) Every(interval ...int) *TaskConfig {
 	i := 1

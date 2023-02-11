@@ -17,7 +17,7 @@ I will add features as I need them.
 | [Local task scheduler](./task/scheduler_test.go)  | Schedule tasks to run at a specific time, once or repeatedly          |
 | [Redis](./redis)                                  | Redis connection helper                                               |
 | [Bots](./bot)                                     | Bot utilities ([Telegram](./bot/tgbot/bot_test.go) only for now)      |
-| [Fast binary storage](./binary/biof/biof_test.go) | Fast binary storage for bulk read/write of fixed size structured data |
+| [Fast binary storage](binary/sbt/biof_test.go) | Fast binary storage for bulk read/write of fixed size structured data |
 
 ## Usage
 
