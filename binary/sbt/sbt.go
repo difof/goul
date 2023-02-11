@@ -505,7 +505,7 @@ func (b *SBT[P, RowType]) Print(
 	for i, v := range rows {
 		cp := pf(v)
 		trows[i] = make(table.Row, len(cp)+1)
-		trows[i][0] = i
+		trows[i][0] = uint64(i) + start
 		for j, v := range cp {
 			trows[i][j+1] = v
 		}
