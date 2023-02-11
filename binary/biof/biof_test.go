@@ -60,13 +60,13 @@ func TestOpen(t *testing.T) {
 }
 
 func TestBulkAppend(t *testing.T) {
-	b, err := Open("test.biof", 1)
+	b, err := Open[*BIOFTestRow]("test.biof", 1)
 
 	if err != nil {
 		t.Fatalf("failed to open BIOF file: %v", err)
 	}
 
-	rows := []Row{}
+	rows := []*BIOFTestRow{}
 	for i := 0; i < 10000000; i++ {
 		rows = append(rows, &BIOFTestRow{
 			Symbol: "MSFT",
