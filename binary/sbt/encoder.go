@@ -3,6 +3,7 @@ package sbt
 import (
 	"encoding/binary"
 	"math"
+	"time"
 )
 
 type RowSerializerBase struct {
@@ -34,6 +35,11 @@ type Encoder struct {
 // NewEncoder
 func NewEncoder(buffer []byte) *Encoder {
 	return &Encoder{newRowSerializerBase(buffer)}
+}
+
+// EncodeTime
+func (e *Encoder) EncodeTime(t time.Time) {
+	e.EncodeInt64(t.UnixNano())
 }
 
 // EncodeStringPadded
@@ -126,6 +132,11 @@ type Decoder struct {
 // NewDecoder
 func NewDecoder(buffer []byte) *Decoder {
 	return &Decoder{newRowSerializerBase(buffer)}
+}
+
+// DecodeTime
+func (d *Decoder) DecodeTime() time.Time {
+	return time.Unix(0, d.DecodeInt64())
 }
 
 // DecodeStringPadded
