@@ -6,22 +6,25 @@ import (
 	"encoding/json"
 	"fmt"
 	binary2 "github.com/difof/goul/binary"
+	"github.com/difof/goul/generics"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"io"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 const MagicNumber uint16 = 0xB10F
 
-func rowTypeToInterface[RowType any](row RowType) (Row, error) {
+func rowTypeToInterface[P generics.Ptr[RowType], RowType any](row P) (Row, error) {
 	r, ok := any(row).(Row)
 	if !ok {
 		return nil, fmt.Errorf("row does not implement Row interface")
 	}
 
-	if r == nil {
-		return nil, fmt.Errorf("row is nil")
+	if row == nil {
+		return r.Factory(), nil
 	}
 
 	return r, nil
@@ -47,7 +50,7 @@ func instanceOfRow[RowType any]() Row {
 // It's useful for storing typed streams of data fast and efficiently.
 //
 // It's not thread-safe.
-type SBT[RowType any] struct {
+type SBT[P generics.Ptr[RowType], RowType any] struct {
 	version    uint8
 	headerHash uint64
 	spec       RowSpec
@@ -60,8 +63,13 @@ type SBT[RowType any] struct {
 	headerSize    int32
 }
 
-func open[RowType any](filename string, version uint8, mode int, perm os.FileMode) (b *SBT[RowType], err error) {
-	b = &SBT[RowType]{
+func open[P generics.Ptr[RowType], RowType any](
+	filename string,
+	version uint8,
+	mode int,
+	perm os.FileMode,
+) (b *SBT[P, RowType], err error) {
+	b = &SBT[P, RowType]{
 		filename: filepath.Base(filename),
 	}
 
@@ -137,18 +145,27 @@ func open[RowType any](filename string, version uint8, mode int, perm os.FileMod
 }
 
 // OpenRead opens a SBT file for reading.
-func OpenRead[RowType any](filename string, version uint8) (b *SBT[RowType], err error) {
-	return open[RowType](filename, version, os.O_RDONLY, 0666)
+func OpenRead[P generics.Ptr[RowType], RowType any](
+	filename string,
+	version uint8,
+) (b *SBT[P, RowType], err error) {
+	return open[P, RowType](filename, version, os.O_RDONLY, 0666)
 }
 
 // Open opens a SBT file.
-func Open[RowType any](filename string, version uint8) (b *SBT[RowType], err error) {
-	return open[RowType](filename, version, os.O_RDWR, 0666)
+func Open[P generics.Ptr[RowType], RowType any](
+	filename string,
+	version uint8,
+) (b *SBT[P, RowType], err error) {
+	return open[P, RowType](filename, version, os.O_RDWR, 0666)
 }
 
 // Create creates a SBT file.
-func Create[RowType any](filename string, version uint8) (b *SBT[RowType], err error) {
-	ri := instanceOfRow[RowType]()
+func Create[P generics.Ptr[RowType], RowType any](
+	filename string,
+	version uint8,
+) (b *SBT[P, RowType], err error) {
+	ri := instanceOfRow[P]()
 	if ri == nil {
 		err = fmt.Errorf("failed to create instance of row")
 		return
@@ -156,7 +173,7 @@ func Create[RowType any](filename string, version uint8) (b *SBT[RowType], err e
 
 	header := ri.Columns()
 
-	b = &SBT[RowType]{
+	b = &SBT[P, RowType]{
 		version:  version,
 		spec:     header,
 		pool:     binary2.BytePoolN(int(header.RowSize())),
@@ -228,21 +245,24 @@ func Create[RowType any](filename string, version uint8) (b *SBT[RowType], err e
 }
 
 // Load opens or creates a SBT file.
-func Load[RowType any](filename string, version uint8) (b *SBT[RowType], err error) {
+func Load[P generics.Ptr[RowType], RowType any](
+	filename string,
+	version uint8,
+) (b *SBT[P, RowType], err error) {
 	if _, err = os.Stat(filename); os.IsNotExist(err) {
-		return Create[RowType](filename, version)
+		return Create[P, RowType](filename, version)
 	}
 
-	return Open[RowType](filename, version)
+	return Open[P, RowType](filename, version)
 }
 
 // Filename returns the filename of the SBT file.
-func (b *SBT[RowType]) Filename() string {
+func (b *SBT[P, RowType]) Filename() string {
 	return b.filename
 }
 
 // Close closes the SBT file.
-func (b *SBT[RowType]) Close() (err error) {
+func (b *SBT[P, RowType]) Close() (err error) {
 	if b.file != nil {
 		err = b.file.Close()
 	}
@@ -251,17 +271,17 @@ func (b *SBT[RowType]) Close() (err error) {
 }
 
 // Version returns the version of the SBT file.
-func (b *SBT[RowType]) Version() uint8 {
+func (b *SBT[P, RowType]) Version() uint8 {
 	return b.version
 }
 
 // Header returns the header of the SBT file.
-func (b *SBT[RowType]) Header() RowSpec {
+func (b *SBT[P, RowType]) Header() RowSpec {
 	return b.spec
 }
 
 // SeekContent seeks to the content section of the SBT file.
-func (b *SBT[RowType]) SeekContent() (err error) {
+func (b *SBT[P, RowType]) SeekContent() (err error) {
 	if _, err = b.file.Seek(int64(b.contentOffset), io.SeekStart); err != nil {
 		err = fmt.Errorf("failed to seek to content: %w", err)
 		return
@@ -271,7 +291,7 @@ func (b *SBT[RowType]) SeekContent() (err error) {
 }
 
 // SeekEnd seeks to the end of the SBT file.
-func (b *SBT[RowType]) SeekEnd() (err error) {
+func (b *SBT[P, RowType]) SeekEnd() (err error) {
 	if _, err = b.file.Seek(0, io.SeekEnd); err != nil {
 		err = fmt.Errorf("failed to seek to end: %w", err)
 		return
@@ -281,7 +301,7 @@ func (b *SBT[RowType]) SeekEnd() (err error) {
 }
 
 // calculateNumRows returns the number of rows in the SBT file.
-func (b *SBT[RowType]) calculateNumRows() (numRows uint64, err error) {
+func (b *SBT[P, RowType]) calculateNumRows() (numRows uint64, err error) {
 	var size int64
 	if size, err = b.file.Seek(0, io.SeekEnd); err != nil {
 		err = fmt.Errorf("failed to seek to end: %w", err)
@@ -294,17 +314,17 @@ func (b *SBT[RowType]) calculateNumRows() (numRows uint64, err error) {
 }
 
 // NumRows returns the number of rows.
-func (b *SBT[RowType]) NumRows() uint64 {
+func (b *SBT[P, RowType]) NumRows() uint64 {
 	return b.numRows
 }
 
 // Size returns file size
-func (b *SBT[RowType]) Size() uint64 {
+func (b *SBT[P, RowType]) Size() uint64 {
 	return (b.numRows * uint64(b.spec.RowSize())) + uint64(b.headerSize+1+4+4)
 }
 
 // Append appends a row to the SBT file.
-func (b *SBT[RowType]) Append(row RowType) (err error) {
+func (b *SBT[P, RowType]) Append(row P) (err error) {
 	buf := b.pool.Get().([]byte)
 	defer b.pool.Put(buf)
 
@@ -331,7 +351,7 @@ func (b *SBT[RowType]) Append(row RowType) (err error) {
 }
 
 // BulkAppend appends a bulk of rows to the SBT file.
-func (b *SBT[RowType]) BulkAppend(rows []RowType) (err error) {
+func (b *SBT[P, RowType]) BulkAppend(rows []P) (err error) {
 	buf := new(bytes.Buffer)
 	buf.Grow(len(rows) * int(b.spec.RowSize()))
 
@@ -371,7 +391,7 @@ func (b *SBT[RowType]) BulkAppend(rows []RowType) (err error) {
 }
 
 // ReadAt reads a row at a specified position.
-func (b *SBT[RowType]) ReadAt(row RowType, pos uint64) (err error) {
+func (b *SBT[P, RowType]) ReadAt(row P, pos uint64) (err error) {
 	var r Row
 	if r, err = rowTypeToInterface(row); err != nil {
 		err = fmt.Errorf("failed to convert row to interface: %w", err)
@@ -411,7 +431,7 @@ func (b *SBT[RowType]) ReadAt(row RowType, pos uint64) (err error) {
 // Use NumRows and pos 0 to read all rows.
 //
 // returns the number of rows read and an error.
-func (b *SBT[RowType]) BulkRead(rows []RowType, pos uint64) (n int, err error) {
+func (b *SBT[P, RowType]) BulkRead(rows []P, pos uint64) (n int, err error) {
 	rowSize := b.spec.RowSize()
 	offset := b.contentOffset + pos*uint64(rowSize)
 
@@ -432,14 +452,14 @@ func (b *SBT[RowType]) BulkRead(rows []RowType, pos uint64) (n int, err error) {
 	decoder := NewDecoder(nil)
 
 	// decode rows
-	for i := 0; i < len(rows); i++ {
+	for ; n < len(rows); n++ {
 		var r Row
-		if r, err = rowTypeToInterface(rows[i]); err != nil {
+		if r, err = rowTypeToInterface(rows[n]); err != nil {
 			err = fmt.Errorf("failed to convert row to interface: %w", err)
 			return
 		}
 
-		byteOffset := i * int(rowSize)
+		byteOffset := n * int(rowSize)
 		byteEnd := byteOffset + int(rowSize)
 
 		decoder.Reset(rowBytes[byteOffset:byteEnd])
@@ -448,7 +468,56 @@ func (b *SBT[RowType]) BulkRead(rows []RowType, pos uint64) (n int, err error) {
 			err = fmt.Errorf("failed to decode row: %w", err)
 			return
 		}
+
+		rows[n] = r.(P)
 	}
 
 	return
+}
+
+type ColumnPrinter[P generics.Ptr[RowType], RowType any] func(row P) []any
+
+func (b *SBT[P, RowType]) Print(
+	out io.Writer,
+	start, count uint64,
+	pf ColumnPrinter[P, RowType],
+) error {
+	rows := make([]P, count)
+
+	readStart := time.Now()
+	if _, err := b.BulkRead(rows, start); err != nil {
+		return fmt.Errorf("failed to read rows: %v", err)
+
+	}
+	readCost := time.Since(readStart)
+
+	t := table.NewWriter()
+	t.SetOutputMirror(out)
+
+	header := make(table.Row, len(b.Header())+1)
+	header[0] = "#"
+	for i, v := range b.Header() {
+		header[i+1] = fmt.Sprintf("%s (%s.%d)", v.Name, v.Type, v.Size)
+	}
+	t.AppendHeader(header)
+
+	trows := make([]table.Row, len(rows))
+	for i, v := range rows {
+		cp := pf(v)
+		trows[i] = make(table.Row, len(cp)+1)
+		trows[i][0] = i
+		for j, v := range cp {
+			trows[i][j+1] = v
+		}
+	}
+
+	t.AppendRows(trows)
+
+	t.AppendFooter(table.Row{"", "Total", b.NumRows()})
+	t.AppendFooter(table.Row{"", "File size", b.Size()})
+	t.AppendFooter(table.Row{"", "Read ms", readCost.Milliseconds()})
+
+	t.Render()
+
+	return nil
 }

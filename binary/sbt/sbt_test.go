@@ -2,6 +2,7 @@ package sbt
 
 import (
 	"math/rand"
+	"os"
 	"testing"
 )
 
@@ -36,7 +37,7 @@ func (h *TestRow) Decode(ctx *Decoder) error {
 }
 
 func TestLoad(t *testing.T) {
-	b, err := Load[TestRow]("test.sbt", 1)
+	b, err := Load[*TestRow, TestRow]("test.sbt", 1)
 
 	if err != nil {
 		t.Fatalf("failed to open SBT file: %v", err)
@@ -79,6 +80,22 @@ func TestBulkAppend(t *testing.T) {
 	}
 
 	t.Logf("file size: %v bytes | num rows: %v (%v)", b.Size(), b.NumRows(), total)
+
+	if err = b.Close(); err != nil {
+		t.Fatalf("failed to close SBT file: %v", err)
+	}
+}
+
+func TestPrint(t *testing.T) {
+	b, err := OpenRead[*TestRow, TestRow]("test.sbt", 1)
+
+	if err != nil {
+		t.Fatalf("failed to open SBT file: %v", err)
+	}
+
+	b.Print(os.Stdout, 0, 10, func(row *TestRow) []any {
+		return []any{row.Symbol, row.Price}
+	})
 
 	if err = b.Close(); err != nil {
 		t.Fatalf("failed to close SBT file: %v", err)
