@@ -10,6 +10,10 @@ type BIOFTestRow struct {
 	Price  uint32
 }
 
+func (h *BIOFTestRow) Factory() Row {
+	return new(BIOFTestRow)
+}
+
 func (h *BIOFTestRow) Columns() RowSpec {
 	return NewRowSpec(
 		NewColumn("Symbol", "ascii", 8),

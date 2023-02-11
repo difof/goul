@@ -8,17 +8,59 @@ import (
 	binary2 "github.com/difof/goul/binary"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
 type Column struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-	Size uint8  `json:"size"`
+	Name string         `json:"name"`
+	Type BIOFColumnType `json:"type"`
+	Size uint8          `json:"size"`
 }
 
-func NewColumn(name string, typ string, size uint8) (c Column) {
-	return Column{name, typ, size}
+// NewColumn creates a new column.
+//
+// If size is not specified, it will be calculated based on the type.
+func NewColumn(name string, typ BIOFColumnType, size ...uint8) (c Column) {
+	c = Column{
+		Name: name,
+		Type: typ,
+	}
+
+	if len(size) > 0 {
+		c.Size = size[0]
+	} else {
+		switch typ {
+		case ColumnTypeString:
+			c.Size = 8
+		case ColumnTypeBinary:
+			c.Size = 64
+		case ColumnTypeBool:
+			c.Size = 1
+		case ColumnTypeInt8:
+			c.Size = 1
+		case ColumnTypeInt16:
+			c.Size = 2
+		case ColumnTypeInt32:
+			c.Size = 4
+		case ColumnTypeInt64:
+			c.Size = 8
+		case ColumnTypeUInt8:
+			c.Size = 1
+		case ColumnTypeUInt16:
+			c.Size = 2
+		case ColumnTypeUInt32:
+			c.Size = 4
+		case ColumnTypeUInt64:
+			c.Size = 8
+		case ColumnTypeFloat:
+			c.Size = 4
+		case ColumnTypeDouble:
+			c.Size = 8
+		}
+	}
+
+	return
 }
 
 type RowSpec []Column
@@ -40,6 +82,7 @@ func (s RowSpec) RowSize() (size uint64) {
 }
 
 type Row interface {
+	Factory() Row
 	Encode([]byte) error
 	Decode([]byte) error
 	Columns() RowSpec
@@ -60,7 +103,7 @@ const MagicNumber uint16 = 0xB10F
 // It's not thread-safe.
 //
 // Implements io.Closer.
-type BIOF struct {
+type BIOF[RowType any] struct {
 	version    uint8
 	headerHash uint64
 	spec       RowSpec
@@ -68,14 +111,18 @@ type BIOF struct {
 	contentOffset uint64
 	file          *os.File
 	pool          sync.Pool
+	filename      string
+	numRows       uint64
 }
 
 // Open opens a BIOF file.
-func Open(path string, version uint8) (b *BIOF, err error) {
-	b = &BIOF{}
+func Open[RowType any](filename string, version uint8) (b *BIOF[RowType], err error) {
+	b = &BIOF[RowType]{
+		filename: filepath.Base(filename),
+	}
 
 	// open file
-	b.file, err = os.OpenFile(path, os.O_RDWR, 0644)
+	b.file, err = os.OpenFile(filename, os.O_RDWR, 0644)
 	if err != nil {
 		err = fmt.Errorf("failed to open file: %w", err)
 		return
@@ -136,20 +183,31 @@ func Open(path string, version uint8) (b *BIOF, err error) {
 		return
 	}
 
-	// calculate content offset
 	b.contentOffset = uint64(2 + 1 + 8 + 4 + headerSize)
-
 	b.pool = binary2.BytePoolN(int(b.spec.RowSize()))
+	if b.numRows, err = b.calculateNumRows(); err != nil {
+		err = fmt.Errorf("failed to calculate number of rows: %w", err)
+		return
+	}
 
 	return
 }
 
 // Create creates a BIOF file.
-func Create(path string, version uint8, header RowSpec) (b *BIOF, err error) {
-	b = &BIOF{
-		version: version,
-		spec:    header,
-		pool:    binary2.BytePoolN(int(header.RowSize())),
+func Create[RowType any](filename string, version uint8, row RowType) (b *BIOF[RowType], err error) {
+	var header RowSpec
+	if r, ok := any(row).(Row); !ok {
+		err = fmt.Errorf("row does not implement Row interface")
+		return
+	} else {
+		header = r.Columns()
+	}
+
+	b = &BIOF[RowType]{
+		version:  version,
+		spec:     header,
+		pool:     binary2.BytePoolN(int(header.RowSize())),
+		filename: filepath.Base(filename),
 	}
 
 	buf := new(bytes.Buffer)
@@ -197,7 +255,7 @@ func Create(path string, version uint8, header RowSpec) (b *BIOF, err error) {
 	}
 
 	// open file
-	if b.file, err = os.Create(path); err != nil {
+	if b.file, err = os.Create(filename); err != nil {
 		return
 	}
 
@@ -207,12 +265,21 @@ func Create(path string, version uint8, header RowSpec) (b *BIOF, err error) {
 	}
 
 	b.contentOffset = uint64(buf.Len())
+	if b.numRows, err = b.calculateNumRows(); err != nil {
+		err = fmt.Errorf("failed to calculate number of rows: %w", err)
+		return
+	}
 
 	return
 }
 
+// Filename returns the filename of the BIOF file.
+func (b *BIOF[RowType]) Filename() string {
+	return b.filename
+}
+
 // Close closes the BIOF file.
-func (b *BIOF) Close() (err error) {
+func (b *BIOF[RowType]) Close() (err error) {
 	if b.file != nil {
 		err = b.file.Close()
 	}
@@ -221,17 +288,17 @@ func (b *BIOF) Close() (err error) {
 }
 
 // Version returns the version of the BIOF file.
-func (b *BIOF) Version() uint8 {
+func (b *BIOF[RowType]) Version() uint8 {
 	return b.version
 }
 
 // Header returns the header of the BIOF file.
-func (b *BIOF) Header() RowSpec {
+func (b *BIOF[RowType]) Header() RowSpec {
 	return b.spec
 }
 
 // SeekContent seeks to the content section of the BIOF file.
-func (b *BIOF) SeekContent() (err error) {
+func (b *BIOF[RowType]) SeekContent() (err error) {
 	if _, err = b.file.Seek(int64(b.contentOffset), io.SeekStart); err != nil {
 		err = fmt.Errorf("failed to seek to content: %w", err)
 		return
@@ -241,7 +308,7 @@ func (b *BIOF) SeekContent() (err error) {
 }
 
 // SeekEnd seeks to the end of the BIOF file.
-func (b *BIOF) SeekEnd() (err error) {
+func (b *BIOF[RowType]) SeekEnd() (err error) {
 	if _, err = b.file.Seek(0, io.SeekEnd); err != nil {
 		err = fmt.Errorf("failed to seek to end: %w", err)
 		return
@@ -250,12 +317,8 @@ func (b *BIOF) SeekEnd() (err error) {
 	return
 }
 
-// NumRows returns the number of rows in the BIOF file.
-func (b *BIOF) NumRows() (numRows uint64, err error) {
-	if err = b.SeekContent(); err != nil {
-		return
-	}
-
+// calculateNumRows returns the number of rows in the BIOF file.
+func (b *BIOF[RowType]) calculateNumRows() (numRows uint64, err error) {
 	var size int64
 	if size, err = b.file.Seek(0, io.SeekEnd); err != nil {
 		err = fmt.Errorf("failed to seek to end: %w", err)
@@ -267,12 +330,32 @@ func (b *BIOF) NumRows() (numRows uint64, err error) {
 	return
 }
 
+// NumRows returns the number of rows.
+func (b *BIOF[RowType]) NumRows() uint64 {
+	return b.numRows
+}
+
+func rowTypeToInterface[RowType any](row RowType) (Row, error) {
+	r, ok := any(row).(Row)
+	if !ok {
+		return nil, fmt.Errorf("row does not implement Row interface")
+	}
+	return r, nil
+}
+
 // Append appends a row to the BIOF file.
-func (b *BIOF) Append(row Row) (err error) {
+func (b *BIOF[RowType]) Append(row RowType) (err error) {
 	buf := b.pool.Get().([]byte)
 	defer b.pool.Put(buf)
 
-	if err = row.Encode(buf); err != nil {
+	var r Row
+	r, err = rowTypeToInterface(row)
+	if err != nil {
+		err = fmt.Errorf("failed to convert row to interface: %w", err)
+		return
+	}
+
+	if err = r.Encode(buf); err != nil {
 		err = fmt.Errorf("failed to encode row: %w", err)
 		return
 	}
@@ -282,11 +365,13 @@ func (b *BIOF) Append(row Row) (err error) {
 		return
 	}
 
+	b.numRows++
+
 	return
 }
 
 // BulkAppend appends a bulk of rows to the BIOF file.
-func (b *BIOF) BulkAppend(rows []Row) (err error) {
+func (b *BIOF[RowType]) BulkAppend(rows []RowType) (err error) {
 	buf := new(bytes.Buffer)
 	buf.Grow(len(rows) * int(b.spec.RowSize()))
 
@@ -294,8 +379,13 @@ func (b *BIOF) BulkAppend(rows []Row) (err error) {
 	defer b.pool.Put(tmp)
 
 	for _, row := range rows {
+		var r Row
+		if r, err = rowTypeToInterface(row); err != nil {
+			err = fmt.Errorf("failed to convert row to interface: %w", err)
+			return
+		}
 
-		if err = row.Encode(tmp); err != nil {
+		if err = r.Encode(tmp); err != nil {
 			err = fmt.Errorf("failed to encode row: %w", err)
 			return
 		}
@@ -311,11 +401,19 @@ func (b *BIOF) BulkAppend(rows []Row) (err error) {
 		return
 	}
 
+	b.numRows += uint64(len(rows))
+
 	return
 }
 
 // ReadAt reads a row at a specified position.
-func (b *BIOF) ReadAt(row Row, pos uint64) (err error) {
+func (b *BIOF[RowType]) ReadAt(row RowType, pos uint64) (err error) {
+	var r Row
+	if r, err = rowTypeToInterface(row); err != nil {
+		err = fmt.Errorf("failed to convert row to interface: %w", err)
+		return
+	}
+
 	rowSize := b.spec.RowSize()
 	offset := b.contentOffset + pos*rowSize
 
@@ -335,7 +433,7 @@ func (b *BIOF) ReadAt(row Row, pos uint64) (err error) {
 	}
 
 	// decode row
-	if err = row.Decode(rowBytes); err != nil {
+	if err = r.Decode(rowBytes); err != nil {
 		err = fmt.Errorf("failed to decode row: %w", err)
 		return
 	}
@@ -350,7 +448,8 @@ func (b *BIOF) ReadAt(row Row, pos uint64) (err error) {
 // Use NumRows and pos 0 to read all rows.
 //
 // returns the number of rows read and an error.
-func (b *BIOF) BulkRead(rows []Row, pos uint64) (n int, err error) {
+func (b *BIOF[RowType]) BulkRead(rows []RowType, pos uint64) (n int, err error) {
+
 	rowSize := b.spec.RowSize()
 	offset := b.contentOffset + pos*rowSize
 
@@ -370,10 +469,16 @@ func (b *BIOF) BulkRead(rows []Row, pos uint64) (n int, err error) {
 
 	// decode rows
 	for i := 0; i < len(rows); i++ {
+		var r Row
+		if r, err = rowTypeToInterface(rows[i]); err != nil {
+			err = fmt.Errorf("failed to convert row to interface: %w", err)
+			return
+		}
+
 		byteOffset := i * int(rowSize)
 		byteEnd := byteOffset + int(rowSize)
 
-		if err = rows[i].Decode(rowBytes[byteOffset:byteEnd]); err != nil {
+		if err = r.Decode(rowBytes[byteOffset:byteEnd]); err != nil {
 			err = fmt.Errorf("failed to decode row: %w", err)
 			return
 		}

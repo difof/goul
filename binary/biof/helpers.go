@@ -6,6 +6,7 @@ import (
 	binary2 "github.com/difof/goul/binary"
 	"hash/fnv"
 	"math"
+	"time"
 )
 
 var bp4 = binary2.BytePool4()
@@ -69,4 +70,21 @@ func EncodeFloat64(f float64) []byte {
 // DecodeFloat64 decodes a float64 value from a byte slice.
 func DecodeFloat64(b []byte) float64 {
 	return math.Float64frombits(binary.LittleEndian.Uint64(b))
+}
+
+// EncodeTimeString encodes a time.Time value to unix timestamp in milliseconds byte slice.
+func EncodeTimeString(layout string, t string, output []byte) error {
+	tm, err := time.Parse(layout, t)
+	if err != nil {
+		return err
+	}
+
+	binary.LittleEndian.PutUint64(output, uint64(tm.Unix()))
+
+	return nil
+}
+
+// DecodeUnixTimestampTime decodes a unix timestamp in milliseconds to a time.Time value.
+func DecodeUnixTimestampTime(b []byte) time.Time {
+	return time.Unix(int64(binary.LittleEndian.Uint64(b)), 0)
 }
