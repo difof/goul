@@ -52,7 +52,7 @@ func instanceOfRow[RowType any]() Row {
 //
 // It's not thread-safe.
 type Container[P generics.Ptr[RowType], RowType any] struct {
-	version    uint8
+	flags      uint8
 	headerHash uint64
 	spec       RowSpec
 
@@ -66,7 +66,6 @@ type Container[P generics.Ptr[RowType], RowType any] struct {
 
 func open[P generics.Ptr[RowType], RowType any](
 	filename string,
-	version uint8,
 	mode int,
 	perm os.FileMode,
 ) (b *Container[P, RowType], err error) {
@@ -93,14 +92,9 @@ func open[P generics.Ptr[RowType], RowType any](
 		return
 	}
 
-	// read version
-	if err = binary.Read(b.file, binary.LittleEndian, &b.version); err != nil {
-		err = fmt.Errorf("failed to read version: %w", err)
-		return
-	}
-
-	if b.version != version {
-		err = fmt.Errorf("invalid version: %d", b.version)
+	// read flags
+	if err = binary.Read(b.file, binary.LittleEndian, &b.flags); err != nil {
+		err = fmt.Errorf("failed to read flags: %w", err)
 		return
 	}
 
@@ -148,23 +142,20 @@ func open[P generics.Ptr[RowType], RowType any](
 // OpenRead opens a Container file for reading.
 func OpenRead[P generics.Ptr[RowType], RowType any](
 	filename string,
-	version uint8,
 ) (b *Container[P, RowType], err error) {
-	return open[P, RowType](filename, version, os.O_RDONLY, 0666)
+	return open[P, RowType](filename, os.O_RDONLY, 0666)
 }
 
 // Open opens a Container file.
 func Open[P generics.Ptr[RowType], RowType any](
 	filename string,
-	version uint8,
 ) (b *Container[P, RowType], err error) {
-	return open[P, RowType](filename, version, os.O_RDWR, 0666)
+	return open[P, RowType](filename, os.O_RDWR, 0666)
 }
 
 // Create creates a Container file.
 func Create[P generics.Ptr[RowType], RowType any](
 	filename string,
-	version uint8,
 ) (b *Container[P, RowType], err error) {
 	ri := instanceOfRow[P]()
 	if ri == nil {
@@ -175,7 +166,6 @@ func Create[P generics.Ptr[RowType], RowType any](
 	header := ri.Columns()
 
 	b = &Container[P, RowType]{
-		version:  version,
 		spec:     header,
 		pool:     binary2.BytePoolN(int(header.RowSize())),
 		filename: filepath.Base(filename),
@@ -189,9 +179,9 @@ func Create[P generics.Ptr[RowType], RowType any](
 		return
 	}
 
-	// write version
-	if err = binary.Write(buf, binary.LittleEndian, version); err != nil {
-		err = fmt.Errorf("failed to write version: %w", err)
+	// write flags
+	if err = binary.Write(buf, binary.LittleEndian, b.flags); err != nil {
+		err = fmt.Errorf("failed to write flags: %w", err)
 		return
 	}
 
@@ -248,13 +238,12 @@ func Create[P generics.Ptr[RowType], RowType any](
 // Load opens or creates a Container file.
 func Load[P generics.Ptr[RowType], RowType any](
 	filename string,
-	version uint8,
 ) (b *Container[P, RowType], err error) {
 	if _, err = os.Stat(filename); os.IsNotExist(err) {
-		return Create[P, RowType](filename, version)
+		return Create[P, RowType](filename)
 	}
 
-	return Open[P, RowType](filename, version)
+	return Open[P, RowType](filename)
 }
 
 // Filename returns the filename of the Container file.
@@ -271,9 +260,9 @@ func (c *Container[P, RowType]) Close() (err error) {
 	return
 }
 
-// Version returns the version of the Container file.
+// Version returns the flags of the Container file.
 func (c *Container[P, RowType]) Version() uint8 {
-	return c.version
+	return c.flags
 }
 
 // Header returns the header of the Container file.
