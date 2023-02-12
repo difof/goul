@@ -2,11 +2,8 @@ package sbt
 
 import (
 	"bytes"
-	"encoding/binary"
 	binary2 "github.com/difof/goul/binary"
 	"hash/fnv"
-	"math"
-	"time"
 )
 
 var bp4 = binary2.BytePool4()
@@ -40,51 +37,4 @@ func StringToBytePadded(s string, length int) []byte {
 // ByteToStringPadded converts a null padded byte slice to a string.
 func ByteToStringPadded(b []byte) string {
 	return string(bytes.TrimRight(b, "\x00"))
-}
-
-// EncodeFloat32 encodes a float32 value to a byte slice.
-func EncodeFloat32(f float32) []byte {
-	b := bp4.Get().([]byte)
-	defer bp4.Put(b)
-
-	binary.LittleEndian.PutUint32(b, math.Float32bits(f))
-
-	return b
-}
-
-// DecodeFloat32 decodes a float32 value from a byte slice.
-func DecodeFloat32(b []byte) float32 {
-	return math.Float32frombits(binary.LittleEndian.Uint32(b))
-}
-
-// EncodeFloat64 encodes a float64 value to a byte slice.
-func EncodeFloat64(f float64) []byte {
-	b := bp8.Get().([]byte)
-	defer bp8.Put(b)
-
-	binary.LittleEndian.PutUint64(b, math.Float64bits(f))
-
-	return b
-}
-
-// DecodeFloat64 decodes a float64 value from a byte slice.
-func DecodeFloat64(b []byte) float64 {
-	return math.Float64frombits(binary.LittleEndian.Uint64(b))
-}
-
-// EncodeTimeString encodes a time.Time value to unix timestamp in milliseconds byte slice.
-func EncodeTimeString(layout string, t string, output []byte) error {
-	tm, err := time.Parse(layout, t)
-	if err != nil {
-		return err
-	}
-
-	binary.LittleEndian.PutUint64(output, uint64(tm.Unix()))
-
-	return nil
-}
-
-// DecodeUnixTimestampTime decodes a unix timestamp in milliseconds to a time.Time value.
-func DecodeUnixTimestampTime(b []byte) time.Time {
-	return time.Unix(int64(binary.LittleEndian.Uint64(b)), 0)
 }
