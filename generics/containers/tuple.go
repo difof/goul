@@ -24,3 +24,9 @@ func (t Tuple[K, V]) Index() K {
 func (t Tuple[K, V]) Value() V {
 	return t.Second
 }
+
+// Set sets the first and second values of the tuple.
+func (t *Tuple[K, V]) Set(first K, second V) {
+	t.First = first
+	t.Second = second
+}
