@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/difof/goul/binary"
 	"github.com/difof/goul/generics"
+	"github.com/difof/goul/generics/containers"
 	"github.com/difof/goul/task"
 	"log"
 	"os"
@@ -110,12 +111,13 @@ func WithMultiContainerArchiveAccess() MultiContainerOption {
 //
 // TODO: iterator to iterate over all files even the archived
 type MultiContainer[P generics.Ptr[RowType], RowType any] struct {
-	container *Container[P, RowType]
-	am        *ArchiveManager
-	lock      sync.Mutex
-	rootDir   string
-	prefix    string
-	opts      *MultiContainerOptions
+	container      *Container[P, RowType]
+	am             *ArchiveManager
+	containerMutex sync.Mutex
+	rootDir        string
+	prefix         string
+	opts           *MultiContainerOptions
+	isArchiving    bool
 }
 
 // NewMultiContainer creates a new MultiContainer and loads the last container file based on the mode
@@ -141,7 +143,7 @@ func NewMultiContainer[P generics.Ptr[RowType], RowType any](
 	}
 
 	if c.opts.archiveScheduler != nil {
-		c.opts.archiveScheduler.Every(c.opts.archiveDelaySec).Seconds().Do(c.controlArchive).
+		c.opts.archiveScheduler.Every(c.opts.archiveDelaySec).Seconds().Do(c.archiveTask).
 			OnError(func(err error, t *task.Task) {
 				log.Printf("MultiContainer (%s): failed to control archive: %s", c.prefix, err)
 			})
@@ -208,28 +210,55 @@ func (c *MultiContainer[P, RowType]) loadContainer(newContainer bool) error {
 	return nil
 }
 
-// controlArchive
-func (c *MultiContainer[P, RowType]) controlArchive(*task.Task) error {
+// archiveTask
+func (c *MultiContainer[P, RowType]) archiveTask(*task.Task) error {
+	if c.isArchiving {
+		if c.opts.log {
+			log.Printf("MultiContainer (%s): skipping archive control, already archiving", c.prefix)
+		}
+		return nil
+	}
+
+	c.isArchiving = true
+	defer func() {
+		c.isArchiving = false
+	}()
+
+	c.Lock()
+	if c.container.NumRows() > 0 {
+		if err := c.loadContainer(true); err != nil {
+			return err
+		}
+	}
+	c.Unlock()
+
 	files, err := c.globPrefixed(".sbt")
 	if err != nil {
 		return err
 	}
 
-	c.Lock()
-	if err := c.loadContainer(true); err != nil {
-		return err
-	}
-	c.Unlock()
-
 	// remove the c.container.Filename() from the list
-	//if len(files) > 0 && c.container != nil {
-	//	for i, f := range files {
-	//		if f == c.container.Filename() {
-	//			files = append(files[:i], files[i+1:]...)
-	//			break
-	//		}
-	//	}
-	//}
+	if len(files) > 0 && c.container != nil {
+		for i, f := range files {
+			if f == c.container.Filename() {
+				files = append(files[:i], files[i+1:]...)
+				break
+			}
+		}
+	}
+
+	return c.archiveFiles(files)
+}
+
+// archiveFiles
+func (c *MultiContainer[P, RowType]) archiveFiles(files []string) error {
+	if len(files) == 0 {
+		return nil
+	}
+
+	if c.opts.log {
+		log.Printf("MultiContainer (%s): archiving files (%d): %v", c.prefix, len(files), files)
+	}
 
 	for _, f := range files {
 		start := time.Now()
@@ -237,6 +266,7 @@ func (c *MultiContainer[P, RowType]) controlArchive(*task.Task) error {
 			return err
 		}
 
+		time.Sleep(5 * time.Millisecond)
 		if err := os.Remove(f); err != nil {
 			return err
 		}
@@ -306,6 +336,10 @@ func (c *MultiContainer[P, RowType]) createNewContainer() (err error) {
 		log.Printf("MultiContainer (%s): opening %s with create mode", c.prefix, filename)
 	}
 
+	if c.opts.log {
+		log.Printf("MultiContainer (%s): creating new container %s", c.prefix, filename)
+	}
+
 	c.container, err = Create[P, RowType](filename)
 	return
 }
@@ -336,10 +370,40 @@ func (c *MultiContainer[P, RowType]) Container() *Container[P, RowType] {
 
 // Lock should be used when accessing the container
 func (c *MultiContainer[P, RowType]) Lock() {
-	c.lock.Lock()
+	c.containerMutex.Lock()
 }
 
 // Unlock should be used when done accessing the container
 func (c *MultiContainer[P, RowType]) Unlock() {
-	c.lock.Unlock()
+	c.containerMutex.Unlock()
+}
+
+func (c *MultiContainer[P, RowType]) Iter() *generics.Iterator[containers.Tuple[int, P]] {
+	return generics.NewIterator[containers.Tuple[int, P]](c)
+}
+
+func (c *MultiContainer[P, RowType]) IterHandler(iter *generics.Iterator[containers.Tuple[int, P]]) {
+	go func() {
+		// TODO: bucket load
+		var r P
+
+		for i := 0; i < int(c.container.NumRows()); i++ {
+			r = any(r).(Row).Factory().(P)
+			if err := c.container.ReadAt(r, uint64(i)); err != nil {
+				return
+			}
+
+			select {
+			case <-iter.Done():
+				return
+			case iter.NextChannel() <- containers.NewTuple(i, r):
+			}
+		}
+
+		iter.IterationDone()
+	}()
+}
+
+func (c *MultiContainer[P, RowType]) AsIterable() generics.Iterable[containers.Tuple[int, P]] {
+	return c
 }

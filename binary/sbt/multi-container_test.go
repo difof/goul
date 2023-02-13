@@ -46,14 +46,14 @@ func createRandomMCArchive(t *testing.T) {
 	mc, err := NewMultiContainer[*TestMCRow, TestMCRow](".", "testmcrow",
 		WithMultiContainerLog(),
 		WithMultiContainerArchiveAccess(),
-		WithMultiContainerArchiveScheduler(ts, 2),
+		WithMultiContainerArchiveScheduler(ts, 1),
 	)
 	if err != nil {
 		t.Fatalf("failed to create multi container: %v", err)
 	}
 
 	t.Logf("appending N rows to %s", mc.Container().Filename())
-	for i := 0; i < 1_000_000; i++ {
+	for i := 0; i < 100_000_000; i++ {
 		name := "test"
 		if i%2 == 0 {
 			name = "test2"
@@ -74,7 +74,7 @@ func createRandomMCArchive(t *testing.T) {
 		//time.Sleep(1 * time.Millisecond)
 	}
 
-	time.Sleep(8 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	return
 }
@@ -82,6 +82,7 @@ func createRandomMCArchive(t *testing.T) {
 func TestWithMultiContainerArchiveAccess(t *testing.T) {
 	createRandomMCArchive(t)
 
+	t.Logf("opening %s for read", "testmcrow_*.sbt")
 	mc, err := NewMultiContainer[*TestMCRow, TestMCRow](".", "testmcrow",
 		WithMultiContainerLog(),
 		WithMultiContainerMode(MultiContainerModeReadLatest),
@@ -91,7 +92,7 @@ func TestWithMultiContainerArchiveAccess(t *testing.T) {
 		t.Fatalf("failed to create multi container: %v", err)
 	}
 
-	t.Logf("reading N rows from %s", mc.Container().Filename())
+	t.Logf("reading %d rows from %s", mc.Container().NumRows(), mc.Container().Filename())
 
 	mc.Lock()
 	defer mc.Unlock()
