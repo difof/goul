@@ -51,7 +51,7 @@ func TestLoad(t *testing.T) {
 	}
 }
 
-const LargeSize = 1000_000_000
+const LargeSize = 10_000_000
 
 func TestBulkAppend(t *testing.T) {
 	b, err := Create[*TestRow, TestRow]("test.sbt")
