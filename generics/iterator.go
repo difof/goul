@@ -16,13 +16,15 @@ type Iterable[T any] interface {
 type Iterator[T any] struct {
 	stop chan struct{}
 	ch   chan T
+	args []any
 }
 
 // NewIterator returns a new iterator. Used by owner.Iter().
-func NewIterator[T any](owner Iterable[T]) (it *Iterator[T]) {
+func NewIterator[T any](owner Iterable[T], args ...any) (it *Iterator[T]) {
 	it = &Iterator[T]{
 		stop: make(chan struct{}, 1),
 		ch:   make(chan T, 1),
+		args: args,
 	}
 
 	owner.IterHandler(it)
