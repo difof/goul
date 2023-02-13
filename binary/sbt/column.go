@@ -1,33 +1,37 @@
 package sbt
 
-type BIOFColumnType string
+type ColumnType string
 
 const (
-	ColumnTypeString  BIOFColumnType = "str"
-	ColumnTypeBinary  BIOFColumnType = "bin"
-	ColumnTypeBool    BIOFColumnType = "bool"
-	ColumnTypeInt8    BIOFColumnType = "i8"
-	ColumnTypeInt16   BIOFColumnType = "i16"
-	ColumnTypeInt32   BIOFColumnType = "i32"
-	ColumnTypeInt64   BIOFColumnType = "i64"
-	ColumnTypeUInt8   BIOFColumnType = "u8"
-	ColumnTypeUInt16  BIOFColumnType = "u16"
-	ColumnTypeUInt32  BIOFColumnType = "u32"
-	ColumnTypeUInt64  BIOFColumnType = "u64"
-	ColumnTypeFloat32 BIOFColumnType = "f32"
-	ColumnTypeFloat64 BIOFColumnType = "f64"
+	ColumnTypeString  ColumnType = "str"
+	ColumnTypeBinary  ColumnType = "bin"
+	ColumnTypeBool    ColumnType = "bool"
+	ColumnTypeInt8    ColumnType = "i8"
+	ColumnTypeInt16   ColumnType = "i16"
+	ColumnTypeInt32   ColumnType = "i32"
+	ColumnTypeInt64   ColumnType = "i64"
+	ColumnTypeUInt8   ColumnType = "u8"
+	ColumnTypeUInt16  ColumnType = "u16"
+	ColumnTypeUInt32  ColumnType = "u32"
+	ColumnTypeUInt64  ColumnType = "u64"
+	ColumnTypeFloat32 ColumnType = "f32"
+	ColumnTypeFloat64 ColumnType = "f64"
 )
 
+func (c ColumnType) New(name string, size ...uint8) Column {
+	return NewColumn(name, c, size...)
+}
+
 type Column struct {
-	Name string         `json:"name"`
-	Type BIOFColumnType `json:"type"`
-	Size uint8          `json:"size"`
+	Name string     `json:"name"`
+	Type ColumnType `json:"type"`
+	Size uint8      `json:"size"`
 }
 
 // NewColumn creates a new column.
 //
 // If size is not specified, it will be calculated based on the type.
-func NewColumn(name string, typ BIOFColumnType, size ...uint8) (c Column) {
+func NewColumn(name string, typ ColumnType, size ...uint8) (c Column) {
 	c = Column{
 		Name: name,
 		Type: typ,
