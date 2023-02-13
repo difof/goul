@@ -418,10 +418,10 @@ func (c *Container[P, RowType]) ReadAt(row P, pos uint64) (err error) {
 //
 // rows is a slice of rows to read into. The length of the slice is the number of rows to read.
 //
-// Use NumRows and pos 0 to read all rows.
+// Use NumRows and pos 0 to read all rows, considering memory constraints, otherwise use Iter.
 //
 // returns the number of rows read and an error.
-func (c *Container[P, RowType]) BulkRead(rows []P, pos uint64) (n int, err error) {
+func (c *Container[P, RowType]) BulkRead(rows []P, pos uint64) (n uint64, err error) {
 	rowSize := c.spec.RowSize()
 	offset := c.contentOffset + pos*uint64(rowSize)
 	byteSize := uint64(int(rowSize) * len(rows))
@@ -446,17 +446,17 @@ func (c *Container[P, RowType]) BulkRead(rows []P, pos uint64) (n int, err error
 	decoder := NewDecoder(nil)
 
 	// decode rows
-	for ; n < len(rows); n++ {
+	for ; n < uint64(len(rows)); n++ {
 		var r Row
 		if r, err = rowTypeToInterface(rows[n]); err != nil {
 			err = fmt.Errorf("failed to convert row to interface: %w", err)
 			return
 		}
 
-		byteOffset := n * int(rowSize)
-		byteEnd := byteOffset + int(rowSize)
+		byteOffset := n * uint64(rowSize)
+		byteEnd := byteOffset + uint64(rowSize)
 
-		if byteEnd > len(rowBytes) {
+		if byteEnd > uint64(len(rowBytes)) {
 			break
 		}
 
@@ -520,32 +520,73 @@ func (c *Container[P, RowType]) Print(
 	return nil
 }
 
-func (c *Container[P, RowType]) Iter() *generics.Iterator[containers.Tuple[int, P]] {
-	return generics.NewIterator[containers.Tuple[int, P]](c)
+func (c *Container[P, RowType]) IterBucketSize(sizeMB int) *generics.Iterator[containers.Tuple[uint64, P]] {
+	return generics.NewIterator[containers.Tuple[uint64, P]](c, sizeMB)
 }
 
-func (c *Container[P, RowType]) IterHandler(iter *generics.Iterator[containers.Tuple[int, P]]) {
+func (c *Container[P, RowType]) Iter() *generics.Iterator[containers.Tuple[uint64, P]] {
+	return generics.NewIterator[containers.Tuple[uint64, P]](c)
+}
+
+func (c *Container[P, RowType]) IterHandler(iter *generics.Iterator[containers.Tuple[uint64, P]]) {
 	go func() {
-		// TODO: bucket load
-		var r P
+		defer iter.IterationDone()
 
-		for i := 0; i < int(c.NumRows()); i++ {
-			r = any(r).(Row).Factory().(P)
-			if err := c.ReadAt(r, uint64(i)); err != nil {
-				return
-			}
-
-			select {
-			case <-iter.Done():
-				return
-			case iter.NextChannel() <- containers.NewTuple(i, r):
-			}
+		maxByteSize := uint64(10 * 1024 * 1024) // 10MB
+		if iter.Args != nil {
+			maxByteSize = uint64(iter.Args[0].(int)) * 1024 * 1024
 		}
 
-		iter.IterationDone()
+		maxRows := maxByteSize / uint64(c.Header().RowSize())
+
+		if maxRows > c.NumRows() {
+			maxRows = c.NumRows()
+		}
+
+		rows := make([]P, maxRows)
+
+		for i, r := range rows {
+			rows[i] = any(r).(Row).Factory().(P)
+		}
+
+		tuple := containers.NewTuple[uint64, P](uint64(0), nil)
+		lastPos := uint64(0)
+		for {
+			nRead, err := c.BulkRead(rows, lastPos)
+			if err != nil {
+				// TODO: error logging
+				return
+			}
+
+			if nRead == 0 {
+				break
+			}
+
+			for i := uint64(0); i < nRead; i++ {
+				tuple.Set(lastPos+i, rows[i])
+
+				select {
+				case <-iter.Done():
+					return
+				case iter.NextChannel() <- tuple:
+				}
+			}
+
+			if lastPos+nRead >= c.NumRows() {
+				remaining := c.NumRows() - lastPos
+				if remaining == 0 || remaining == nRead {
+					break
+				}
+
+				rows = rows[:remaining]
+				lastPos = c.NumRows() - remaining
+			} else {
+				lastPos += nRead
+			}
+		}
 	}()
 }
 
-func (c *Container[P, RowType]) AsIterable() generics.Iterable[containers.Tuple[int, P]] {
+func (c *Container[P, RowType]) AsIterable() generics.Iterable[containers.Tuple[uint64, P]] {
 	return c
 }

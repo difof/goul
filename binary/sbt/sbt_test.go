@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"os"
 	"testing"
+	"time"
 )
 
 type TestRow struct {
@@ -50,18 +51,22 @@ func TestLoad(t *testing.T) {
 	}
 }
 
+const LargeSize = 1000_000_000
+
 func TestBulkAppend(t *testing.T) {
-	b, err := Load[*TestRow]("test.sbt")
+	b, err := Create[*TestRow, TestRow]("test.sbt")
 
 	if err != nil {
 		t.Fatalf("failed to open Container file: %v", err)
 	}
 
-	sz := 1_000_000_000
+	sz := LargeSize
 	flushsz := 10_000
 	total := 0
 	ri := 0
 	rows := make([]*TestRow, flushsz)
+
+	start := time.Now()
 	for i := 0; i < sz; i++ {
 		rows[ri] = &TestRow{
 			Symbol: "BTCUSDT",
@@ -79,7 +84,8 @@ func TestBulkAppend(t *testing.T) {
 		}
 	}
 
-	t.Logf("file size: %v bytes | num rows: %v (%v)", b.Size(), b.NumRows(), total)
+	t.Logf("file size: %dMB | num rows: %d | append time %dms",
+		b.Size()/1024/1024, b.NumRows(), time.Since(start).Milliseconds())
 
 	if err = b.Close(); err != nil {
 		t.Fatalf("failed to close Container file: %v", err)
@@ -100,4 +106,37 @@ func TestPrint(t *testing.T) {
 	if err = b.Close(); err != nil {
 		t.Fatalf("failed to close Container file: %v", err)
 	}
+}
+
+func TestIterate(t *testing.T) {
+	b, err := Load[*TestRow, TestRow]("test.sbt")
+	if err != nil {
+		t.Fatalf("failed to open Container file: %v", err)
+	}
+
+	start := time.Now()
+	if b.NumRows() == 0 {
+		for i := 0; i < LargeSize; i++ {
+			if err := b.Append(&TestRow{
+				Symbol: "BTCUSDT",
+				Price:  rand.Uint32(),
+			}); err != nil {
+				t.Fatalf("failed to append: %v", err)
+			}
+		}
+
+		t.Logf("file size: %dMB | num rows: %d | append time %dms",
+			b.Size()/1024/1024, b.NumRows(), time.Since(start).Milliseconds())
+	}
+
+	it := b.Iter()
+	defer it.Close()
+
+	start = time.Now()
+	for item := range it.Next() {
+		row := item.Value()
+		_ = row
+	}
+
+	t.Logf("Iteration took %dms", time.Since(start).Milliseconds())
 }
