@@ -37,7 +37,7 @@ func (h *TestRow) Decode(ctx *Decoder) error {
 }
 
 func TestLoad(t *testing.T) {
-	b, err := Load[*TestRow, TestRow]("test.sbt", 1)
+	b, err := Load[*TestRow, TestRow]("test.sbt")
 
 	if err != nil {
 		t.Fatalf("failed to open Container file: %v", err)
@@ -51,7 +51,7 @@ func TestLoad(t *testing.T) {
 }
 
 func TestBulkAppend(t *testing.T) {
-	b, err := Load[*TestRow]("test.sbt", 1)
+	b, err := Load[*TestRow]("test.sbt")
 
 	if err != nil {
 		t.Fatalf("failed to open Container file: %v", err)
@@ -87,7 +87,7 @@ func TestBulkAppend(t *testing.T) {
 }
 
 func TestPrint(t *testing.T) {
-	b, err := OpenRead[*TestRow, TestRow]("test.sbt", 1)
+	b, err := OpenRead[*TestRow, TestRow]("test.sbt")
 
 	if err != nil {
 		t.Fatalf("failed to open Container file: %v", err)
