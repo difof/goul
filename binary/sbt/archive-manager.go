@@ -2,7 +2,7 @@ package sbt
 
 import (
 	"fmt"
-	"github.com/difof/goul/binary"
+	"github.com/difof/goul/fs"
 	"os"
 )
 
@@ -17,7 +17,7 @@ func LoadArchive(archiveFilename string) (am *ArchiveManager, err error) {
 		archiveFilename: archiveFilename,
 	}
 
-	am.decompressedFilename, err = binary.EasyUnGzip(archiveFilename)
+	am.decompressedFilename, err = fs.EasyUnGzip(archiveFilename)
 	if err != nil {
 		err = fmt.Errorf("LoadArchive error %s: %w", archiveFilename, err)
 		return
