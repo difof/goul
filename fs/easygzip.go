@@ -1,4 +1,4 @@
-package binary
+package fs
 
 import (
 	"compress/gzip"
