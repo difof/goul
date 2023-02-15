@@ -37,7 +37,7 @@ func (h *TestRow) Factory() sbt.Row {
 
 func (h *TestRow) Columns() sbt.RowSpec {
 	return sbt.NewRowSpec(
-		sbt.ColumnTypeString.New("name", 8),
+		sbt.ColumnTypeString.New("name", 8), // 8 bytes for the fixed size string
 		sbt.ColumnTypeUInt32.New("value"),
 	)
 }
@@ -75,6 +75,19 @@ if err = b.Close(); err != nil {
 ```
 
 You can use any of `sbt.Open`, `sbt.OpenRead`, `sbt.Create` or `sbt.Load` for opening a file based on your need.
+
+To iterate over the contents of the file:
+```go
+// create a new iterator
+it := b.Iter()
+// it.Close can be used to stop the iteration early within the loop
+defer it.Close()
+
+for item := range it.Next() {
+    // item is a tuple[uint64, *TestRow]
+    // use item.Value() to get the row
+}
+```
 
 ### Multiple files (split file)
 
