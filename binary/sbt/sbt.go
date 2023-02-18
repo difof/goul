@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const MagicNumber uint16 = 0xB10F
+const MagicNumber uint16 = 0x5B70
 
 func rowTypeToInterface[P generics.Ptr[RowType], RowType any](row P) (Row, error) {
 	r, ok := any(row).(Row)
@@ -246,6 +246,29 @@ func Load[P generics.Ptr[RowType], RowType any](
 	return Open[P, RowType](filename)
 }
 
+// calculateNumRows returns the number of rows in the Container file.
+func (c *Container[P, RowType]) calculateNumRows() (numRows uint64, err error) {
+	var size int64
+	if size, err = c.file.Seek(0, io.SeekEnd); err != nil {
+		err = fmt.Errorf("failed to seek to end: %w", err)
+		return
+	}
+
+	numRows = uint64(size-int64(c.contentOffset)) / uint64(c.spec.RowSize())
+
+	return
+}
+
+// checkBounds checks if the given index is within the bounds of the Container file.
+func (c *Container[P, RowType]) checkBounds(index, count uint64) (err error) {
+	if index+count > c.NumRows() {
+		err = fmt.Errorf("index out of bounds: %d > %d", index+count, c.numRows)
+		return
+	}
+
+	return
+}
+
 // Filename returns the filename of the Container file.
 func (c *Container[P, RowType]) Filename() string {
 	return c.filename
@@ -290,19 +313,6 @@ func (c *Container[P, RowType]) SeekEnd() (err error) {
 	return
 }
 
-// calculateNumRows returns the number of rows in the Container file.
-func (c *Container[P, RowType]) calculateNumRows() (numRows uint64, err error) {
-	var size int64
-	if size, err = c.file.Seek(0, io.SeekEnd); err != nil {
-		err = fmt.Errorf("failed to seek to end: %w", err)
-		return
-	}
-
-	numRows = uint64(size-int64(c.contentOffset)) / uint64(c.spec.RowSize())
-
-	return
-}
-
 // NumRows returns the number of rows.
 func (c *Container[P, RowType]) NumRows() uint64 {
 	return c.numRows
@@ -313,8 +323,83 @@ func (c *Container[P, RowType]) Size() uint64 {
 	return (c.numRows * uint64(c.spec.RowSize())) + uint64(c.headerSize+1+4+4)
 }
 
+// Set sets a row at the given index.
+func (c *Container[P, RowType]) Set(row P, index uint64) (err error) {
+	if err = c.checkBounds(index, 1); err != nil {
+		return
+	}
+
+	buf := c.pool.Get().([]byte)
+	defer c.pool.Put(buf)
+
+	var r Row
+	r, err = rowTypeToInterface(row)
+	if err != nil {
+		err = fmt.Errorf("failed to convert row to interface: %w", err)
+		return
+	}
+
+	if err = r.Encode(NewEncoder(buf)); err != nil {
+		err = fmt.Errorf("failed to encode row: %w", err)
+		return
+	}
+
+	if _, err = c.file.WriteAt(buf, int64(c.contentOffset+index*uint64(c.spec.RowSize()))); err != nil {
+		err = fmt.Errorf("failed to write row: %w", err)
+		return
+	}
+
+	return
+}
+
+// BulkSet sets a bulk of rows at the given index.
+func (c *Container[P, RowType]) BulkSet(index uint64, rows []P) (err error) {
+	if err = c.checkBounds(index, uint64(len(rows))); err != nil {
+		return
+	}
+
+	buf := new(bytes.Buffer)
+	buf.Grow(len(rows) * int(c.spec.RowSize()))
+
+	tmp := c.pool.Get().([]byte)
+	defer c.pool.Put(tmp)
+
+	encoder := NewEncoder(nil)
+
+	for _, row := range rows {
+		var r Row
+		if r, err = rowTypeToInterface(row); err != nil {
+			err = fmt.Errorf("failed to convert row to interface: %w", err)
+			return
+		}
+
+		encoder.Reset(tmp)
+
+		if err = r.Encode(encoder); err != nil {
+			err = fmt.Errorf("failed to encode row: %w", err)
+			return
+		}
+
+		if _, err = buf.Write(tmp); err != nil {
+			err = fmt.Errorf("failed to write row: %w", err)
+			return
+		}
+	}
+
+	if _, err = c.file.WriteAt(buf.Bytes(), int64(c.contentOffset+index*uint64(c.spec.RowSize()))); err != nil {
+		err = fmt.Errorf("failed to write rows: %w", err)
+		return
+	}
+
+	return
+}
+
 // Append appends a row to the Container file.
 func (c *Container[P, RowType]) Append(row P) (err error) {
+	if err := c.SeekEnd(); err != nil {
+		return err
+	}
+
 	buf := c.pool.Get().([]byte)
 	defer c.pool.Put(buf)
 
@@ -342,6 +427,10 @@ func (c *Container[P, RowType]) Append(row P) (err error) {
 
 // BulkAppend appends a bulk of rows to the Container file.
 func (c *Container[P, RowType]) BulkAppend(rows []P) (err error) {
+	if err := c.SeekEnd(); err != nil {
+		return err
+	}
+
 	buf := new(bytes.Buffer)
 	buf.Grow(len(rows) * int(c.spec.RowSize()))
 
@@ -381,18 +470,14 @@ func (c *Container[P, RowType]) BulkAppend(rows []P) (err error) {
 }
 
 // ReadAt reads a row at a specified position.
-func (c *Container[P, RowType]) ReadAt(row P, pos uint64) (err error) {
-	var r Row
-	if r, err = rowTypeToInterface(row); err != nil {
-		err = fmt.Errorf("failed to convert row to interface: %w", err)
+func (c *Container[P, RowType]) ReadAt(pos uint64, row P) (err error) {
+	if err = c.checkBounds(pos, 1); err != nil {
 		return
 	}
 
-	offset := c.contentOffset + pos*uint64(c.spec.RowSize())
-
-	// seek file
-	if _, err = c.file.Seek(int64(offset), io.SeekStart); err != nil {
-		err = fmt.Errorf("failed to seek file: %w", err)
+	var r Row
+	if r, err = rowTypeToInterface(row); err != nil {
+		err = fmt.Errorf("failed to convert row to interface: %w", err)
 		return
 	}
 
@@ -400,7 +485,8 @@ func (c *Container[P, RowType]) ReadAt(row P, pos uint64) (err error) {
 	rowBytes := c.pool.Get().([]byte)
 	defer c.pool.Put(rowBytes)
 
-	if _, err = c.file.Read(rowBytes); err != nil {
+	offset := c.contentOffset + pos*uint64(c.spec.RowSize())
+	if _, err = c.file.ReadAt(rowBytes, int64(offset)); err != nil {
 		err = fmt.Errorf("failed to read row: %w", err)
 		return
 	}
@@ -421,7 +507,11 @@ func (c *Container[P, RowType]) ReadAt(row P, pos uint64) (err error) {
 // Use NumRows and pos 0 to read all rows, considering memory constraints, otherwise use Iter.
 //
 // returns the number of rows read and an error.
-func (c *Container[P, RowType]) BulkRead(rows []P, pos uint64) (n uint64, err error) {
+func (c *Container[P, RowType]) BulkRead(pos uint64, rows []P) (n uint64, err error) {
+	if err = c.checkBounds(pos, uint64(len(rows))); err != nil {
+		return
+	}
+
 	rowSize := c.spec.RowSize()
 	offset := c.contentOffset + pos*uint64(rowSize)
 	byteSize := uint64(int(rowSize) * len(rows))
@@ -430,15 +520,9 @@ func (c *Container[P, RowType]) BulkRead(rows []P, pos uint64) (n uint64, err er
 		byteSize = c.Size() - offset
 	}
 
-	// seek file
-	if _, err = c.file.Seek(int64(offset), io.SeekStart); err != nil {
-		err = fmt.Errorf("failed to seek file: %w", err)
-		return
-	}
-
 	// read rows
 	rowBytes := make([]byte, byteSize)
-	if _, err = c.file.Read(rowBytes); err != nil {
+	if _, err = c.file.ReadAt(rowBytes, int64(offset)); err != nil {
 		err = fmt.Errorf("failed to read rows: %w", err)
 		return
 	}
@@ -475,6 +559,7 @@ func (c *Container[P, RowType]) BulkRead(rows []P, pos uint64) (n uint64, err er
 
 type ColumnPrinter[P generics.Ptr[RowType], RowType any] func(row P) []any
 
+// Print prints the rows in the Container file to the specified writer.
 func (c *Container[P, RowType]) Print(
 	out io.Writer,
 	start, count uint64,
@@ -483,7 +568,7 @@ func (c *Container[P, RowType]) Print(
 	rows := make([]P, count)
 
 	readStart := time.Now()
-	if _, err := c.BulkRead(rows, start); err != nil {
+	if _, err := c.BulkRead(start, rows); err != nil {
 		return fmt.Errorf("failed to read rows: %v", err)
 
 	}
@@ -552,7 +637,7 @@ func (c *Container[P, RowType]) IterHandler(iter *generics.Iterator[containers.T
 		tuple := containers.NewTuple[uint64, P](uint64(0), nil)
 		lastPos := uint64(0)
 		for {
-			nRead, err := c.BulkRead(rows, lastPos)
+			nRead, err := c.BulkRead(lastPos, rows)
 			if err != nil {
 				// TODO: error logging
 				return
