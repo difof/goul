@@ -85,6 +85,23 @@ func TestOrderBy(t *testing.T) {
 	})
 }
 
+//func TestGroupBy(t *testing.T) {
+//	slice := NewSlice(1, 1, 3, 4, 5, 10, 7, 8, 5, 6, 5)
+//	grouped := NewMap[int, Slice[int]]()
+//
+//	generics.GroupBy(slice.AsCollection(), grouped.Factory, nil)
+//
+//	func() {}()
+//
+//	if grouped.Len() != 2 {
+//		t.Fatal("not grouped")
+//	}
+//
+//	for item := range grouped.Iter().Next() {
+//		t.Log(item.Key(), item.Value())
+//	}
+//}
+
 func TestFind(t *testing.T) {
 	slice := NewSlice(1, 2, 3, 4, 5, 10, 7, 8, 9, 6, 5)
 
@@ -113,9 +130,10 @@ func TestSelect(t *testing.T) {
 
 	n := NewMap[string, float32]()
 
-	mapped, err := generics.Select(m.AsCollection(), n.AsCollection(), func(kv Tuple[string, int]) (Tuple[string, float32], error) {
-		return NewTuple(strings.ToUpper(kv.Key()), float32(kv.Value())*2.001), nil
-	})
+	mapped, err := generics.Select(m.AsCollection(), n.AsCollection(),
+		func(kv Tuple[string, int]) (Tuple[string, float32], error) {
+			return NewTuple(strings.ToUpper(kv.Key()), float32(kv.Value())*2.001), nil
+		})
 
 	if err != nil {
 		t.Fatal(err)

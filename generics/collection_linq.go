@@ -1,6 +1,8 @@
 package generics
 
-import "sort"
+import (
+	"sort"
+)
 
 // Any returns true if any item in the collection matches the predicate.
 func Any[Elem any](iterable Iterable[Elem], fn func(Elem) (bool, error)) (bool, error) {
@@ -115,6 +117,18 @@ func OrderBy[K, V, Elem any](c Collection[K, V, Elem], comparator func(V, V) Com
 	})
 
 	r = c.FactoryFrom(values)
+
+	return
+}
+
+// GroupBy returns a new collection grouped by the given key selector.
+//
+// returns a slice of collections, each one containing the elements that match the key.
+func GroupBy[K, V, Elem any](
+	c Collection[K, V, Elem],
+	gfactory func() Collection[K, V, Elem],
+	keySelector func(Elem) (K, error),
+) (r Collection[K, V, Elem], err error) {
 
 	return
 }
