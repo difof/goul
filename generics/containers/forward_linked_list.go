@@ -26,7 +26,14 @@ func (n *ForwardLinkedListNode[V]) Next() *ForwardLinkedListNode[V] {
 func (n *ForwardLinkedListNode[V]) InsertAfter(list *ForwardLinkedList[V], value V) *ForwardLinkedListNode[V] {
 	newNode := &ForwardLinkedListNode[V]{value: value, next: n.next}
 	n.next = newNode
+
+	// check list's last node
+	if list.last == n {
+		list.last = newNode
+	}
+
 	list.size++
+
 	return newNode
 }
 
@@ -70,6 +77,7 @@ func (s *ForwardLinkedList[V]) IsEmpty() bool {
 	return s.first == nil
 }
 
+// Get returns the value at the given index.
 func (s *ForwardLinkedList[V]) Get(index int) V {
 	if index < 0 || index >= s.size {
 		panic("index out of range")
