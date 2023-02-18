@@ -1,3 +1,4 @@
 *.sbt
 *.zip
 *.gz
+*.decompressed
