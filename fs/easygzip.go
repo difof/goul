@@ -5,18 +5,20 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
-func EasyGzip(filePath string) error {
+func EasyGzip(filename string) error {
 	// Open the original file
-	file, err := os.Open(filePath)
+	file, err := os.Open(filename)
 	if err != nil {
 		return fmt.Errorf("error opening file: %w", err)
 	}
 	defer file.Close()
 
 	// Create a new file with .gz extension
-	compressedFilePath := filePath + ".gz"
+	compressedFilePath := filename + ".gz"
 	compressedFile, err := os.Create(compressedFilePath)
 	if err != nil {
 		return fmt.Errorf("error creating compressed file: %w", err)
@@ -36,16 +38,16 @@ func EasyGzip(filePath string) error {
 	return nil
 }
 
-func EasyUnGzip(filePath string) (string, error) {
+func EasyUnGzip(filename string) (string, error) {
 	// Open the original file
-	file, err := os.Open(filePath)
+	file, err := os.Open(filename)
 	if err != nil {
 		return "", fmt.Errorf("error opening file: %w", err)
 	}
 	defer file.Close()
 
 	// Create a new file with .gz extension
-	decompressedFilePath := filePath + ".decompressed"
+	decompressedFilePath := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".decompressed"
 	decompressedFile, err := os.Create(decompressedFilePath)
 	if err != nil {
 		return "", fmt.Errorf("error creating decompressed file: %w", err)
