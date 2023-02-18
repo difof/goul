@@ -17,6 +17,7 @@ type Iterator[T any] struct {
 	stop chan struct{}
 	ch   chan T
 	Args []any
+	err  error
 }
 
 // NewIterator returns a new iterator. Used by owner.Iter().
@@ -35,6 +36,18 @@ func NewIterator[T any](owner Iterable[T], args ...any) (it *Iterator[T]) {
 // Close stops the iterator. Used to stop iteration early.
 func (it *Iterator[T]) Close() {
 	it.stop <- struct{}{}
+}
+
+// SetError sets the error on the iterator.
+// Used by Iterable.IterHandler to signal an error.
+func (it *Iterator[T]) SetError(err error) {
+	it.err = err
+}
+
+// Error returns the error on the iterator.
+// Used by Iterable.IterHandler to signal an error.
+func (it *Iterator[T]) Error() error {
+	return it.err
 }
 
 // IterationDone closes the iterator channel.
