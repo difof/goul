@@ -8,7 +8,6 @@ import (
 	"github.com/difof/goul/generics"
 	"github.com/difof/goul/generics/containers"
 	"github.com/difof/goul/task"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -19,65 +18,6 @@ import (
 )
 
 var ErrNoFileFound = errors.New("no file found")
-
-type MultiContainerOpenMode int
-
-const (
-	MultiContainerModeNone MultiContainerOpenMode = iota
-	MultiContainerModeReadLatest
-	MultiContainerModeAppendLatest
-	MultiContainerModeCreate
-)
-
-type MultiContainerOptions struct {
-	mode             MultiContainerOpenMode
-	accessArchive    bool
-	logger           *log.Logger
-	archiveScheduler *task.Scheduler
-	archiveDelaySec  int
-	onError          func(error)
-}
-
-// LogPrintf
-func (o *MultiContainerOptions) LogPrintf(format string, v ...interface{}) {
-	if o.logger != nil {
-		o.logger.Printf(format, v...)
-	}
-}
-
-type MultiContainerOption func(*MultiContainerOptions)
-
-func WithMultiContainerLog(l *log.Logger) MultiContainerOption {
-	return func(o *MultiContainerOptions) {
-		o.logger = l
-	}
-}
-
-// WithOnError sets the error handler
-func WithOnError(onError func(error)) MultiContainerOption {
-	return func(o *MultiContainerOptions) {
-		o.onError = onError
-	}
-}
-
-func WithMultiContainerArchiveScheduler(s *task.Scheduler, delaySec int) MultiContainerOption {
-	return func(o *MultiContainerOptions) {
-		o.archiveScheduler = s
-		o.archiveDelaySec = delaySec
-	}
-}
-
-func WithMultiContainerMode(mode MultiContainerOpenMode) MultiContainerOption {
-	return func(o *MultiContainerOptions) {
-		o.mode = mode
-	}
-}
-
-func WithMultiContainerArchiveAccess() MultiContainerOption {
-	return func(o *MultiContainerOptions) {
-		o.accessArchive = true
-	}
-}
 
 // MultiContainer is a Container wrapper allowing data insertion in multiple serial files
 // with archive control to save space.
