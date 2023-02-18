@@ -51,7 +51,7 @@ func TestLoad(t *testing.T) {
 	}
 }
 
-const LargeSize = 10_000_000
+const LargeSize = 100_000_000
 
 func TestBulkAppend(t *testing.T) {
 	b, err := Create[*TestRow, TestRow]("test.sbt")
@@ -62,26 +62,20 @@ func TestBulkAppend(t *testing.T) {
 
 	sz := LargeSize
 	flushsz := 10_000
-	total := 0
-	ri := 0
-	rows := make([]*TestRow, flushsz)
+	bulk := NewBulkAppendContext(flushsz, b)
 
 	start := time.Now()
 	for i := 0; i < sz; i++ {
-		rows[ri] = &TestRow{
+		if err := bulk.Append(b, &TestRow{
 			Symbol: "BTCUSDT",
 			Price:  rand.Uint32(),
+		}); err != nil {
+			t.Fatalf("failed to append: %v", err)
 		}
+	}
 
-		if flushsz == ri+1 {
-			if err = b.BulkAppend(rows); err != nil {
-				t.Fatalf("failed to bulk append: %v", err)
-			}
-			total += ri
-			ri = 0
-		} else {
-			ri++
-		}
+	if err := bulk.Close(b); err != nil {
+		t.Fatalf("failed to close bulk append context: %v", err)
 	}
 
 	t.Logf("file size: %dMB | num rows: %d | append time %dms",
