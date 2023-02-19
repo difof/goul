@@ -1,5 +1,7 @@
 package generics
 
+import "context"
+
 type Iterable[T any] interface {
 	// Iter returns an iterator for the collection.
 	Iter() *Iterator[T]
@@ -14,19 +16,21 @@ type Iterable[T any] interface {
 // Iterator is a generic iterator used to iterate over Collection.
 // Use Iterator.Close for early loop termination.
 type Iterator[T any] struct {
-	stop chan struct{}
-	ch   chan T
-	Args []any
-	err  error
+	context.Context
+	cancel context.CancelFunc
+	ch     chan T
+	Args   []any
+	err    error
 }
 
 // NewIterator returns a new iterator. Used by owner.Iter().
 func NewIterator[T any](owner Iterable[T], args ...any) (it *Iterator[T]) {
 	it = &Iterator[T]{
-		stop: make(chan struct{}, 1),
 		ch:   make(chan T, 1),
 		Args: args,
 	}
+
+	it.Context, it.cancel = context.WithCancel(context.Background())
 
 	owner.IterHandler(it)
 
@@ -35,7 +39,7 @@ func NewIterator[T any](owner Iterable[T], args ...any) (it *Iterator[T]) {
 
 // Close stops the iterator. Used to stop iteration early.
 func (it *Iterator[T]) Close() {
-	it.stop <- struct{}{}
+	it.cancel()
 }
 
 // SetError sets the error on the iterator.
@@ -62,12 +66,6 @@ func (it *Iterator[T]) IterationDone() {
 // This might be costly for collections that a single iteration is heavy.
 func (it *Iterator[T]) Next() <-chan T {
 	return it.ch
-}
-
-// Done returns a channel that is closed when the iterator is done.
-// used by Iterable.IterHandler to stop iteration.
-func (it *Iterator[T]) Done() <-chan struct{} {
-	return it.stop
 }
 
 // NextChannel returns the receiving channel to be returned by Next().
