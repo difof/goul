@@ -9,6 +9,7 @@ import (
 	"github.com/difof/goul/generics/containers"
 	"github.com/difof/goul/task"
 	"path"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -31,18 +32,19 @@ type MultiContainer[P generics.Ptr[RowType], RowType any] struct {
 	containerMutex    sync.Mutex
 	rootDir           string
 	prefix            string
-	opts              *MultiContainerOptions
+	opts              *Options
 	archiveTaskRunner *task.Runner
 }
 
 // NewMultiContainer creates a new MultiContainer and loads the last container file based on the mode
 func NewMultiContainer[P generics.Ptr[RowType], RowType any](
-	rootDir, prefix string, options ...MultiContainerOption,
+	rootDir, prefix string, options ...Option,
 ) (c *MultiContainer[P, RowType], err error) {
 	c = &MultiContainer[P, RowType]{
 		rootDir: rootDir,
 		prefix:  prefix,
-		opts: &MultiContainerOptions{
+		opts: &Options{
+			compressionPoolSize: runtime.NumCPU() / 4,
 			onError: func(err error) {
 				panic(err)
 			},
@@ -53,7 +55,7 @@ func NewMultiContainer[P generics.Ptr[RowType], RowType any](
 		option(c.opts)
 	}
 
-	c.am, err = NewArchiveManager(rootDir, prefix, 100)
+	c.am, err = NewArchiveManager(rootDir, prefix, 100, c.opts.compressionPoolSize)
 	if err != nil {
 		return
 	}

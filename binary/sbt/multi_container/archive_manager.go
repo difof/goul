@@ -24,16 +24,19 @@ type ArchiveManager struct {
 }
 
 // NewArchiveManager creates a new archive manager
-func NewArchiveManager(rootDir, prefix string, buffersz int) (am *ArchiveManager, err error) {
+func NewArchiveManager(rootDir, prefix string, compQueueBufSize, compPoolSize int) (am *ArchiveManager, err error) {
 	am = &ArchiveManager{
 		rootDir:          rootDir,
 		prefix:           prefix,
-		compressionQueue: make(chan string, buffersz),
+		compressionQueue: make(chan string, compQueueBufSize),
 		errs:             new(errgroup.Group),
 	}
 
 	am.stopContext, am.stopFunc = context.WithCancel(context.Background())
-	am.errs.Go(am.manageCompressionQueue)
+
+	for i := 0; i < compPoolSize; i++ {
+		am.errs.Go(am.manageCompressionQueue)
+	}
 
 	err = am.CleanCompress()
 

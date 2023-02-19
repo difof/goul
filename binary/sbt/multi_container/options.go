@@ -4,43 +4,43 @@ import (
 	"log"
 )
 
-type MultiContainerOptions struct {
-	accessArchive   bool
-	logger          *log.Logger
-	archiveDelaySec int
-	onError         func(error)
+type Options struct {
+	logger              *log.Logger
+	archiveDelaySec     int
+	onError             func(error)
+	compressionPoolSize int
 }
 
 // LogPrintf
-func (o *MultiContainerOptions) LogPrintf(format string, v ...interface{}) {
+func (o *Options) LogPrintf(format string, v ...interface{}) {
 	if o.logger != nil {
 		o.logger.Printf(format, v...)
 	}
 }
 
-type MultiContainerOption func(*MultiContainerOptions)
+type Option func(*Options)
 
-func WithMultiContainerLog(l *log.Logger) MultiContainerOption {
-	return func(o *MultiContainerOptions) {
+func WithLog(l *log.Logger) Option {
+	return func(o *Options) {
 		o.logger = l
 	}
 }
 
 // WithOnError sets the error handler
-func WithOnError(onError func(error)) MultiContainerOption {
-	return func(o *MultiContainerOptions) {
+func WithOnError(onError func(error)) Option {
+	return func(o *Options) {
 		o.onError = onError
 	}
 }
 
-func WithMultiContainerArchiveScheduler(delaySec int) MultiContainerOption {
-	return func(o *MultiContainerOptions) {
+func WithCompressionScheduler(delaySec int) Option {
+	return func(o *Options) {
 		o.archiveDelaySec = delaySec
 	}
 }
 
-func WithMultiContainerArchiveAccess() MultiContainerOption {
-	return func(o *MultiContainerOptions) {
-		o.accessArchive = true
+func WithCompressionPoolSize(size int) Option {
+	return func(o *Options) {
+		o.compressionPoolSize = size
 	}
 }
