@@ -41,13 +41,13 @@ func TestLoad(t *testing.T) {
 	b, err := Load[*TestRow, TestRow]("test.sbt")
 
 	if err != nil {
-		t.Fatalf("failed to open Container file: %v", err)
+		t.Fatalf("failed to open AcquireContainer file: %v", err)
 	}
 
 	t.Logf("file size: %v bytes | num rows: %v", b.Size(), b.NumRows())
 
 	if err = b.Close(); err != nil {
-		t.Fatalf("failed to close Container file: %v", err)
+		t.Fatalf("failed to close AcquireContainer file: %v", err)
 	}
 }
 
@@ -57,12 +57,12 @@ func TestBulkAppend(t *testing.T) {
 	b, err := Create[*TestRow, TestRow]("test.sbt")
 
 	if err != nil {
-		t.Fatalf("failed to open Container file: %v", err)
+		t.Fatalf("failed to open AcquireContainer file: %v", err)
 	}
 
 	sz := LargeSize
 	flushsz := 10_000
-	bulk := NewBulkAppendContext(flushsz, b)
+	bulk := NewBulkAppendContext[*TestRow, TestRow](flushsz)
 
 	start := time.Now()
 	for i := 0; i < sz; i++ {
@@ -82,7 +82,7 @@ func TestBulkAppend(t *testing.T) {
 		b.Size()/1024/1024, b.NumRows(), time.Since(start).Milliseconds())
 
 	if err = b.Close(); err != nil {
-		t.Fatalf("failed to close Container file: %v", err)
+		t.Fatalf("failed to close AcquireContainer file: %v", err)
 	}
 }
 
@@ -90,7 +90,7 @@ func TestPrint(t *testing.T) {
 	b, err := OpenRead[*TestRow, TestRow]("test.sbt")
 
 	if err != nil {
-		t.Fatalf("failed to open Container file: %v", err)
+		t.Fatalf("failed to open AcquireContainer file: %v", err)
 	}
 
 	b.Print(os.Stdout, 0, 10, func(row *TestRow) []any {
@@ -98,14 +98,14 @@ func TestPrint(t *testing.T) {
 	})
 
 	if err = b.Close(); err != nil {
-		t.Fatalf("failed to close Container file: %v", err)
+		t.Fatalf("failed to close AcquireContainer file: %v", err)
 	}
 }
 
 func TestIterate(t *testing.T) {
 	b, err := Load[*TestRow, TestRow]("test.sbt")
 	if err != nil {
-		t.Fatalf("failed to open Container file: %v", err)
+		t.Fatalf("failed to open AcquireContainer file: %v", err)
 	}
 
 	start := time.Now()
