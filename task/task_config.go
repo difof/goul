@@ -2,6 +2,7 @@ package task
 
 import (
 	"github.com/gofrs/uuid"
+	"golang.org/x/sync/semaphore"
 	"log"
 	"time"
 )
@@ -35,6 +36,7 @@ type TaskConfig struct {
 	onFinish      TaskHandler
 	onBeforeStart TaskHandler
 	onError       TaskErrorHandler
+	sem           *semaphore.Weighted
 }
 
 func (tc *TaskConfig) callHandler(t *Task, f TaskHandler) {

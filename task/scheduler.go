@@ -3,6 +3,7 @@ package task
 import (
 	"github.com/difof/goul/generics/containers"
 	"github.com/gofrs/uuid"
+	"golang.org/x/sync/semaphore"
 	"sync"
 	"time"
 )
@@ -61,8 +62,10 @@ func (s *Scheduler) Start() {
 			select {
 			case <-ticker.C:
 				for _, tc := range s.taskConfigs.Values() {
-					s.wg.Add(1)
-					go s.runTask(tc)
+					if tc.sem.TryAcquire(1) {
+						s.wg.Add(1)
+						go s.runTask(tc)
+					}
 				}
 			case <-s.stopCh:
 				for _, tc := range s.taskConfigs.Values() {
@@ -114,6 +117,7 @@ func (s *Scheduler) newTask(interval int, oneShot bool) (tc *TaskConfig) {
 		minute:    now.Minute(),
 		oneShot:   oneShot,
 		scheduler: s,
+		sem:       semaphore.NewWeighted(1),
 	}
 
 	s.taskConfigs.Set(tc.id, tc)
@@ -158,6 +162,7 @@ func (s *Scheduler) calculateTaskNextStep(tc *TaskConfig) {
 
 func (s *Scheduler) runTask(tc *TaskConfig) {
 	defer s.wg.Done()
+	defer tc.sem.Release(1)
 
 	if time.Since(tc.nextStep) <= 0 {
 		return
