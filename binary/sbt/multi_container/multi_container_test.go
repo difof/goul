@@ -2,7 +2,6 @@ package multi_container
 
 import (
 	"github.com/difof/goul/binary/sbt"
-	"github.com/difof/goul/task"
 	"log"
 	"testing"
 	"time"
@@ -41,25 +40,27 @@ func (r *TestMCRow) Columns() sbt.RowSpec {
 }
 
 func createRandomMCArchive(t *testing.T, archiveDelaySec int) {
-	ts := task.NewScheduler(task.DefaultPrecision)
-	ts.Start()
-	defer ts.Stop()
-
 	mc, err := NewMultiContainer[*TestMCRow, TestMCRow]("mctest", "testmcrow",
 		WithMultiContainerLog(log.Default()),
 		WithMultiContainerArchiveAccess(),
-		WithMultiContainerArchiveScheduler(ts, archiveDelaySec),
+		WithMultiContainerArchiveScheduler(archiveDelaySec),
 	)
 	if err != nil {
 		t.Fatalf("failed to create multi container: %v", err)
 	}
 
-	t.Logf("appending N rows to %s", mc.Container().Filename())
-	appender := sbt.NewBulkAppendContext(sbt.Bucket10k, mc.Container())
 	defer func() {
-		mc.Lock()
-		appender.Close(mc.Container())
-		mc.Unlock()
+		if err := mc.Close(); err != nil {
+			t.Fatalf("failed to close multi container: %v", err)
+		}
+	}()
+
+	appender := sbt.NewBulkAppendContext[*TestMCRow, TestMCRow](sbt.Bucket10k)
+	defer func() {
+		defer mc.ReleaseContainer()
+		if err := appender.Close(mc.AcquireContainer()); err != nil {
+			t.Fatalf("failed to close appender: %v", err)
+		}
 	}()
 
 	var name string
@@ -69,44 +70,36 @@ func createRandomMCArchive(t *testing.T, archiveDelaySec int) {
 			name = "test2"
 		}
 
-		func() {
-			mc.Lock()
-			defer mc.Unlock()
-			if err := appender.Append(mc.Container(), &TestMCRow{
-				Name:  name,
-				Value: uint64(i),
-			}); err != nil {
-				t.Fatalf("failed to append row: %v", err)
-			}
-		}()
-
-		//time.Sleep(1 * time.Microsecond)
+		if err := appender.Append(mc.AcquireContainer(), &TestMCRow{
+			Name:  name,
+			Value: uint64(i),
+		}); err != nil {
+			mc.ReleaseContainer()
+			t.Fatalf("failed to append row: %v", err)
+		}
+		mc.ReleaseContainer()
 	}
-
-	mc.WaitArchive()
-
-	//time.Sleep(5 * time.Second)
 
 	return
 }
 
 func TestCreate(t *testing.T) {
-	createRandomMCArchive(t, 1)
+	createRandomMCArchive(t, 2)
 }
 
 func TestWithMultiContainerArchiveAccess(t *testing.T) {
 	//createRandomMCArchive(t, 1)
 	mc, err := NewMultiContainer[*TestMCRow, TestMCRow]("mctest", "testmcrow",
 		WithMultiContainerLog(log.Default()),
-		WithMultiContainerMode(MultiContainerModeNone),
 		WithMultiContainerArchiveAccess(),
 	)
 	if err != nil {
 		t.Fatalf("failed to create multi container: %v", err)
 	}
+	defer mc.Close()
 
-	mc.Lock()
-	defer mc.Unlock()
+	//mc.Lock()
+	//defer mc.Unlock()
 
 	it := mc.Iter()
 	defer it.Close()

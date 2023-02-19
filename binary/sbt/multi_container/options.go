@@ -1,26 +1,14 @@
 package multi_container
 
 import (
-	"github.com/difof/goul/task"
 	"log"
 )
 
-type MultiContainerOpenMode int
-
-const (
-	MultiContainerModeNone MultiContainerOpenMode = iota
-	MultiContainerModeReadLatest
-	MultiContainerModeAppendLatest
-	MultiContainerModeCreate
-)
-
 type MultiContainerOptions struct {
-	mode             MultiContainerOpenMode
-	accessArchive    bool
-	logger           *log.Logger
-	archiveScheduler *task.Scheduler
-	archiveDelaySec  int
-	onError          func(error)
+	accessArchive   bool
+	logger          *log.Logger
+	archiveDelaySec int
+	onError         func(error)
 }
 
 // LogPrintf
@@ -45,16 +33,9 @@ func WithOnError(onError func(error)) MultiContainerOption {
 	}
 }
 
-func WithMultiContainerArchiveScheduler(s *task.Scheduler, delaySec int) MultiContainerOption {
+func WithMultiContainerArchiveScheduler(delaySec int) MultiContainerOption {
 	return func(o *MultiContainerOptions) {
-		o.archiveScheduler = s
 		o.archiveDelaySec = delaySec
-	}
-}
-
-func WithMultiContainerMode(mode MultiContainerOpenMode) MultiContainerOption {
-	return func(o *MultiContainerOptions) {
-		o.mode = mode
 	}
 }
 
