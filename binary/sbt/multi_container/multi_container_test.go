@@ -64,7 +64,7 @@ func createRandomMCArchive(t *testing.T, archiveDelaySec int) {
 	}()
 
 	var name string
-	for i := 0; i < 100_000_000; i++ {
+	for i := 0; i < 1000_000_000; i++ {
 		name = "test"
 		if i%2 == 0 {
 			name = "test2"
@@ -85,6 +85,9 @@ func createRandomMCArchive(t *testing.T, archiveDelaySec int) {
 
 func TestCreate(t *testing.T) {
 	createRandomMCArchive(t, 2)
+	// zip 79.sbt
+	// keep 81.sbt
+	// don't touch 85.sbt
 }
 
 func TestWithMultiContainerArchiveAccess(t *testing.T) {

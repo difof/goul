@@ -59,7 +59,7 @@ func NewMultiContainer[P generics.Ptr[RowType], RowType any](
 	}
 
 	// TODO: load the last decompressed container file or open a new one
-	if err = c.loadNewContainer(); err != nil {
+	if err = c.loadContainer(false); err != nil {
 		return
 	}
 
@@ -73,10 +73,25 @@ func NewMultiContainer[P generics.Ptr[RowType], RowType any](
 	return
 }
 
-// loadNewContainer load a new container and close the current one.
-func (c *MultiContainer[P, RowType]) loadNewContainer() (err error) {
+// loadContainer load a new container and close the current one.
+func (c *MultiContainer[P, RowType]) loadContainer(forceCreate bool) (err error) {
 	c.AcquireContainer()
 	defer c.ReleaseContainer()
+
+	if !forceCreate {
+		// just load the last file, otherwise continue with the new one
+		var lastFilename string
+		lastFilename, err = c.am.getLastUncompressedFilename()
+		if err != nil {
+			return
+		}
+
+		if lastFilename != "" {
+			c.opts.LogPrintf("MultiContainer (%s): opening last file %s", c.prefix, lastFilename)
+			c.container, err = sbt.Open[P, RowType](lastFilename)
+			return
+		}
+	}
 
 	if c.container != nil {
 		if err = c.container.Close(); err != nil {
@@ -86,7 +101,7 @@ func (c *MultiContainer[P, RowType]) loadNewContainer() (err error) {
 	}
 
 	filename := path.Join(c.rootDir, NewMultiContainerFilenamePartsFromNow(c.prefix).String())
-	c.opts.LogPrintf("MultiContainer (%s): opening %s with create mode", c.prefix, filename)
+	c.opts.LogPrintf("MultiContainer (%s): creating %s", c.prefix, filename)
 	c.container, err = sbt.Create[P, RowType](filename)
 
 	return
@@ -94,10 +109,14 @@ func (c *MultiContainer[P, RowType]) loadNewContainer() (err error) {
 
 // archiveTask
 func (c *MultiContainer[P, RowType]) archiveTask(*task.Task) error {
+	if c.container == nil {
+		return nil
+	}
+
 	currentFilename := c.container.Filename()
 
 	if c.container.NumRows() > 0 {
-		if err := c.loadNewContainer(); err != nil {
+		if err := c.loadContainer(true); err != nil {
 			return err
 		}
 	} else {
@@ -138,35 +157,6 @@ func (c *MultiContainer[P, RowType]) AcquireContainer() *sbt.Container[P, RowTyp
 // ReleaseContainer releases the current container.
 func (c *MultiContainer[P, RowType]) ReleaseContainer() {
 	c.containerMutex.Unlock()
-}
-
-//
-//// Lock should be used when accessing the container
-//func (c *MultiContainer[P, RowType]) Lock() {
-//	c.containerMutex.Lock()
-//}
-//
-//// Unlock should be used when done accessing the container
-//func (c *MultiContainer[P, RowType]) Unlock() {
-//	c.containerMutex.Unlock()
-//}
-
-// RemoveDecompressed removes all decompressed files
-func (c *MultiContainer[P, RowType]) RemoveDecompressed() error {
-	// TODO:
-	return nil
-}
-
-// DecompressAll decompresses all archived files
-func (c *MultiContainer[P, RowType]) DecompressAll() error {
-	// TODO:
-	return nil
-}
-
-// ArchiveAll archives all unarchived files
-func (c *MultiContainer[P, RowType]) ArchiveAll() error {
-	// TODO: check if both .sbt and .sbt.gz with same name exist, if so remove .gz and start over
-	return nil
 }
 
 // IterRange will begin iteration from the first found file and will stop at the last found file

@@ -35,19 +35,48 @@ func NewArchiveManager(rootDir, prefix string, buffersz int) (am *ArchiveManager
 	am.stopContext, am.stopFunc = context.WithCancel(context.Background())
 	am.errs.Go(am.manageCompressionQueue)
 
-	err = am.CompressRemaining()
+	err = am.CleanCompress()
 
 	return
 }
 
-// CompressRemaining compresses all remaining files
-func (am *ArchiveManager) CompressRemaining() error {
+// CleanCompress does this to root dir:
+//
+//   - Ignore files with prefix and .sbt extension if there's a compressed version
+//   - Compress any file with prefix and .sbt extension
+func (am *ArchiveManager) CleanCompress() error {
+	compressed, err := am.globPrefixed(".sbt.gz")
+	if err != nil {
+		return err
+	}
+
 	files, err := am.globPrefixed(".sbt")
 	if err != nil {
 		return err
 	}
 
-	for _, file := range files {
+	toCompress := make([]string, 0, len(files))
+
+	for fi, file := range files {
+		hasCompressed := false
+		for _, compressedFile := range compressed {
+			if strings.TrimSuffix(file, ".sbt") == strings.TrimSuffix(compressedFile, ".sbt.gz") {
+				hasCompressed = true
+				break
+			}
+		}
+
+		// ignore the last file if it's not compressed
+		if !hasCompressed {
+			if fi == len(files)-1 {
+				break
+			}
+
+			toCompress = append(toCompress, file)
+		}
+	}
+
+	for _, file := range toCompress {
 		am.QueueCompression(file)
 	}
 
@@ -67,7 +96,7 @@ func (am *ArchiveManager) manageCompressionQueue() error {
 			return nil
 		case filename := <-am.compressionQueue:
 			if err := am.compressFile(filename); err != nil {
-				return fmt.Errorf("failed to compress file %s: %w", filename, err)
+				return err
 			}
 		}
 	}
@@ -106,6 +135,32 @@ func (am *ArchiveManager) globPrefixed(suffix string) (files []string, err error
 	}
 
 	sort.Strings(files)
+
+	return
+}
+
+// getLastUncompressedFilename returns the last uncompressed filename
+func (am *ArchiveManager) getLastUncompressedFilename() (filename string, err error) {
+	files, err := am.globPrefixed(".sbt")
+	if err != nil {
+		err = fmt.Errorf("getLastUncompressedFilename glob error: %w", err)
+		return
+	}
+
+	if len(files) == 0 {
+		return
+	}
+
+	filename = files[len(files)-1]
+
+	// check .sbt.gz with same name exists
+	if _, err = os.Stat(strings.TrimSuffix(filename, ".sbt") + ".sbt.gz"); os.IsNotExist(err) {
+		err = nil
+		return
+	} else if err != nil {
+		err = fmt.Errorf("getLastUncompressedFilename stat error: %w", err)
+		return
+	}
 
 	return
 }
