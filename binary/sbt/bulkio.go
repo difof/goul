@@ -27,15 +27,13 @@ type BulkAppendContext[P generics.Ptr[RT], RT any] struct {
 	closed bool
 }
 
-func NewBulkAppendContext[P generics.Ptr[RT], RT any](bucketSize int, infer *Container[P, RT]) *BulkAppendContext[P, RT] {
+func NewBulkAppendContext[P generics.Ptr[RT], RT any](bucketSize int) *BulkAppendContext[P, RT] {
 	return &BulkAppendContext[P, RT]{
 		bucket: make([]P, bucketSize),
 	}
 }
 
 // Append will append a row to the bucket.
-//
-// Make sure to lock concurrent access to this function
 func (w *BulkAppendContext[P, RT]) Append(c *Container[P, RT], row P) error {
 	if w.closed {
 		return ErrClosed
@@ -57,8 +55,6 @@ func (w *BulkAppendContext[P, RT]) Append(c *Container[P, RT], row P) error {
 
 // Close will ensure all remaining rows are added.
 func (w *BulkAppendContext[P, RT]) Close(c *Container[P, RT]) error {
-	// TOCO: lock
-
 	if w.closed {
 		return ErrClosed
 	}
