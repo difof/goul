@@ -40,9 +40,8 @@ func (r *TestMCRow) Columns() sbt.RowSpec {
 }
 
 func createRandomMCArchive(t *testing.T, archiveDelaySec int) {
-	mc, err := NewMultiContainer[*TestMCRow, TestMCRow]("mctest", "testmcrow",
+	mc, err := NewMultiContainer[*TestMCRow, TestMCRow]("mctest", "test-bybit-linear",
 		WithLog(log.Default()),
-		WithMultiContainerArchiveAccess(),
 		WithCompressionScheduler(archiveDelaySec),
 	)
 	if err != nil {
@@ -84,17 +83,13 @@ func createRandomMCArchive(t *testing.T, archiveDelaySec int) {
 }
 
 func TestCreate(t *testing.T) {
-	createRandomMCArchive(t, 2)
-	// zip 79.sbt
-	// keep 81.sbt
-	// don't touch 85.sbt
+	createRandomMCArchive(t, 3)
 }
 
 func TestWithMultiContainerArchiveAccess(t *testing.T) {
 	//createRandomMCArchive(t, 1)
 	mc, err := NewMultiContainer[*TestMCRow, TestMCRow]("mctest", "testmcrow",
 		WithLog(log.Default()),
-		WithMultiContainerArchiveAccess(),
 	)
 	if err != nil {
 		t.Fatalf("failed to create multi container: %v", err)
