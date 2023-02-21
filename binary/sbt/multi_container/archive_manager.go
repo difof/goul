@@ -244,9 +244,9 @@ func (am *ArchiveManager) Close() error {
 	return am.errs.Wait()
 }
 
-// FullChan returns the decompressed filename channel.
+// Files returns the decompressed filename channel.
 // This function panics on error, make sure to recover.
-func (am *ArchiveManager) FullChan(ctx context.Context, start, end time.Time) chan string {
+func (am *ArchiveManager) Files(ctx context.Context, start, end time.Time) chan string {
 	iterableFilenames, err := am.getIterableFilenames(start, end)
 	if err != nil {
 		return nil
@@ -256,10 +256,12 @@ func (am *ArchiveManager) FullChan(ctx context.Context, start, end time.Time) ch
 		return nil
 	}
 
-	availableChan := make(chan string, 2)
-	filenameChan := make(chan string, 1)
+	availableChan := make(chan string, 1)
 
+	// (decompress files and) send iterable filenames to availableChan
 	am.errs.Go(func() (err error) {
+		defer close(availableChan)
+
 		for _, filename := range iterableFilenames {
 			if filepath.Ext(filename) == ".gz" {
 				filename, err = am.decompressFile(filename)
@@ -278,22 +280,5 @@ func (am *ArchiveManager) FullChan(ctx context.Context, start, end time.Time) ch
 		return
 	})
 
-	go func() {
-		defer close(filenameChan)
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case fn := <-availableChan:
-				select {
-				case <-ctx.Done():
-					return
-				case filenameChan <- fn:
-				}
-			}
-		}
-	}()
-
-	return filenameChan
+	return availableChan
 }
