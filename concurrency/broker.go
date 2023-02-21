@@ -31,6 +31,7 @@ func NewBroker[ChannelT comparable, MsgT any](defaultChannel ChannelT) *Broker[C
 }
 
 // Start starts the broker. Must be called before adding any new subscribers.
+// Will block until the broker is stopped.
 func (b *Broker[ChannelT, MsgT]) Start() {
 	subs := map[ChannelT]map[*Subscription[ChannelT, MsgT]]struct{}{}
 
