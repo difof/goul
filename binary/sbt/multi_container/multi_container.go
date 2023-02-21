@@ -45,9 +45,6 @@ func NewMultiContainer[P generics.Ptr[RowType], RowType any](
 		prefix:  prefix,
 		opts: &Options{
 			compressionPoolSize: runtime.NumCPU() / 4,
-			onError: func(err error) {
-				panic(err)
-			},
 		},
 	}
 

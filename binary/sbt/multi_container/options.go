@@ -7,7 +7,6 @@ import (
 type Options struct {
 	logger              *log.Logger
 	archiveDelaySec     int
-	onError             func(error)
 	compressionPoolSize int
 }
 
@@ -26,19 +25,14 @@ func WithLog(l *log.Logger) Option {
 	}
 }
 
-// WithOnError sets the error handler
-func WithOnError(onError func(error)) Option {
-	return func(o *Options) {
-		o.onError = onError
-	}
-}
-
 func WithCompressionScheduler(delaySec int) Option {
 	return func(o *Options) {
 		o.archiveDelaySec = delaySec
 	}
 }
 
+// WithCompressionPoolSize sets the size of the compression worker pool.
+// Defaults to NumCPU / 4.
 func WithCompressionPoolSize(size int) Option {
 	return func(o *Options) {
 		o.compressionPoolSize = size
