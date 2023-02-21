@@ -39,6 +39,8 @@ func (r *TestMCRow) Columns() sbt.RowSpec {
 	)
 }
 
+const largeSize = 100_000_000
+
 func createRandomMCArchive(t *testing.T, archiveDelaySec int) {
 	mc, err := NewMultiContainer[*TestMCRow, TestMCRow]("mctest", "test-bybit-linear",
 		WithLog(log.Default()),
@@ -54,7 +56,7 @@ func createRandomMCArchive(t *testing.T, archiveDelaySec int) {
 		}
 	}()
 
-	appender := sbt.NewBulkAppendContext[*TestMCRow, TestMCRow](sbt.Bucket10k)
+	appender := sbt.NewBulkAppendContext[*TestMCRow, TestMCRow](sbt.Bucket1k)
 	defer func() {
 		defer mc.ReleaseContainer()
 		if err := appender.Close(mc.AcquireContainer()); err != nil {
@@ -63,7 +65,7 @@ func createRandomMCArchive(t *testing.T, archiveDelaySec int) {
 	}()
 
 	var name string
-	for i := 0; i < 1000_000_000; i++ {
+	for i := 0; i < largeSize; i++ {
 		name = "test"
 		if i%2 == 0 {
 			name = "test2"
@@ -83,30 +85,35 @@ func createRandomMCArchive(t *testing.T, archiveDelaySec int) {
 }
 
 func TestCreate(t *testing.T) {
-	createRandomMCArchive(t, 3)
+	createRandomMCArchive(t, 1)
 }
 
 func TestWithMultiContainerArchiveAccess(t *testing.T) {
-	//createRandomMCArchive(t, 1)
-	mc, err := NewMultiContainer[*TestMCRow, TestMCRow]("mctest", "testmcrow",
+	mc, err := NewMultiContainer[*TestMCRow, TestMCRow]("mctest", "test-bybit-linear",
 		WithLog(log.Default()),
 	)
 	if err != nil {
 		t.Fatalf("failed to create multi container: %v", err)
 	}
-	defer mc.Close()
-
-	//mc.Lock()
-	//defer mc.Unlock()
+	defer func() {
+		if err := mc.Close(); err != nil {
+			t.Fatalf("failed to close multi container: %v", err)
+		}
+	}()
 
 	it := mc.Iter()
 	defer it.Close()
 
 	nread := uint64(0)
 	start := time.Now()
+	filename := ""
+
 	for item := range it.Next() {
-		row := item.Value()
-		_ = row
+		if filename != item.Key().Filename {
+			filename = item.Key().Filename
+			t.Logf("reading file %s", filename)
+		}
+
 		nread++
 	}
 	elapsed := time.Since(start)
@@ -115,7 +122,15 @@ func TestWithMultiContainerArchiveAccess(t *testing.T) {
 		t.Fatalf("failed to iterate: %v", it.Error())
 	}
 
-	t.Logf("read %d rows in %dms (%d rows/s iter speed)",
+	if nread == 0 {
+		t.Fatal("no rows read")
+	}
+
+	if nread != largeSize {
+		t.Fatalf("expected %d rows, got %d", largeSize, nread)
+	}
+
+	t.Logf("read %d rows in %dms (%d rows/s total iter speed)",
 		nread,
 		elapsed.Milliseconds(),
 		nread/uint64(elapsed.Seconds()),

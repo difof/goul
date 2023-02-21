@@ -96,7 +96,7 @@ func (c *MultiContainer[P, RowType]) loadContainer(forceCreate bool) (err error)
 	}
 
 	if c.container != nil {
-		if err = c.container.Close(); err != nil {
+		if err = c.closeContainer(); err != nil {
 			err = fmt.Errorf("MultiContainer (%s): failed to close containers: %w", c.prefix, err)
 			return
 		}
@@ -130,10 +130,19 @@ func (c *MultiContainer[P, RowType]) archiveTask(*task.Task) error {
 	return nil
 }
 
+// closeContainer
+func (c *MultiContainer[P, RowType]) closeContainer() error {
+	c.opts.LogPrintf("MultiContainer (%s): closing %s with %d rows",
+		c.prefix, c.container.Filename(), c.container.NumRows())
+	return c.container.Close()
+}
+
 // Close closes the current container and the archive scheduler
 func (c *MultiContainer[P, RowType]) Close() (err error) {
-	if err = c.archiveTaskRunner.Close(); err != nil {
-		return
+	if c.archiveTaskRunner != nil {
+		if err = c.archiveTaskRunner.Close(); err != nil {
+			return
+		}
 	}
 
 	if err = c.am.Close(); err != nil {
@@ -141,7 +150,7 @@ func (c *MultiContainer[P, RowType]) Close() (err error) {
 	}
 
 	if c.container != nil {
-		if err = c.container.Close(); err != nil {
+		if err = c.closeContainer(); err != nil {
 			return
 		}
 	}
@@ -186,7 +195,7 @@ func (c *MultiContainer[P, RowType]) AsIterable() generics.Iterable[containers.T
 func (c *MultiContainer[P, RowType]) containerIter(
 	underlying *sbt.Container[P, RowType],
 	mcIter *generics.Iterator[containers.Tuple[*MultiContainerIteratorKey, P]],
-) {
+) error {
 	cit := underlying.Iter()
 	defer cit.Close()
 
@@ -199,31 +208,36 @@ func (c *MultiContainer[P, RowType]) containerIter(
 		tuple.Set(mcik, item.Value())
 
 		select {
-		case <-cit.Done():
-			return
 		case <-mcIter.Done():
-			return
+			return nil
 		case mcIter.NextChannel() <- tuple:
 		}
 	}
+
+	if cit.Error() != nil {
+		return cit.Error()
+	}
+
+	return nil
 }
 
 func (c *MultiContainer[P, RowType]) filenameIter(
 	filename string,
 	mcIter *generics.Iterator[containers.Tuple[*MultiContainerIteratorKey, P]],
-) error {
-	container, err := sbt.Load[P, RowType](filename)
+) (err error) {
+	var container *sbt.Container[P, RowType]
+	container, err = sbt.Load[P, RowType](filename)
 	if err != nil {
 		return fmt.Errorf("failed to open container %s for iteration: %w", filename, err)
 	}
-	defer container.Close()
+	defer func() {
+		err = container.Close()
+	}()
 
 	c.opts.LogPrintf("MultiContainer (%s): iterating over %s with %d rows",
 		c.prefix, filename, container.NumRows())
 
-	c.containerIter(container, mcIter)
-
-	return nil
+	return c.containerIter(container, mcIter)
 }
 
 // iterate handles the iterator goroutine
@@ -246,7 +260,7 @@ func (c *MultiContainer[P, RowType]) iterate(
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	for filename := range c.am.FullChan(ctx, start, end) {
+	for filename := range c.am.Files(ctx, start, end) {
 		select {
 		case <-iter.Done():
 			return
