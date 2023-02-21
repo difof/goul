@@ -6,13 +6,13 @@ import (
 )
 
 const (
-	Bucket10   = 10
-	Bucket100  = 100
-	Bucket1k   = 1000
-	Bucket10k  = 10000
-	Bucket100k = 100000
-	Bucket1m   = 1000000
-	Bucket10m  = 10000000
+	Bucket10   uint64 = 10
+	Bucket100  uint64 = 100
+	Bucket1k   uint64 = 1000
+	Bucket10k  uint64 = 10000
+	Bucket100k uint64 = 100000
+	Bucket1m   uint64 = 1000000
+	Bucket10m  uint64 = 10000000
 )
 
 type BulkIO[P generics.Ptr[RT], RT any] interface {
@@ -27,7 +27,7 @@ type BulkAppendContext[P generics.Ptr[RT], RT any] struct {
 	closed bool
 }
 
-func NewBulkAppendContext[P generics.Ptr[RT], RT any](bucketSize int) *BulkAppendContext[P, RT] {
+func NewBulkAppendContext[P generics.Ptr[RT], RT any](bucketSize uint64) *BulkAppendContext[P, RT] {
 	return &BulkAppendContext[P, RT]{
 		bucket: make([]P, bucketSize),
 	}
