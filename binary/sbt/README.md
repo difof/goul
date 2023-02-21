@@ -84,8 +84,12 @@ it := b.Iter()
 defer it.Close()
 
 for item := range it.Next() {
-    // item is a tuple[uint64, *TestRow]
-    // use item.Value() to get the row
+    // item is a tuple[int64, *TestRow]
+    // use item.Value() to access the row
+}
+
+if err := it.Error(); err != nil {
+    panic(err)
 }
 ```
 
@@ -96,16 +100,17 @@ all with the same format. This is useful for storing huge collections of data, e
 continuous files which can be automatically compressed by the `MultiContainer` on predefined intervals.
 
 ```go
-// use task scheduler to compress files every 10 seconds
-ts := task.NewScheduler(task.DefaultPrecision)
-ts.Start()
-defer ts.Stop()
-
 mc, err := NewMultiContainer[*TestRow, TestRow](".", "testprefix",
-    WithMultiContainerLog(), // allow logging to stdout
-    WithMultiContainerArchiveScheduler(ts, 10), // enable file split and compression
+    WithLog(log.Default), // allow logging to stdout
+    WithMultiContainerArchiveScheduler(10), // enable file split and compression
 )
 if err != nil {
     panic(err)
 }
+
+defer func() {
+    if err := mc.Close(); err != nil {
+        panic(err)
+    }
+}()
 ```
