@@ -88,7 +88,7 @@ func TestCreate(t *testing.T) {
 	createRandomMCArchive(t, 1)
 }
 
-func TestWithMultiContainerArchiveAccess(t *testing.T) {
+func TestWithMultiContainerArchiveIter(t *testing.T) {
 	mc, err := NewMultiContainer[*TestMCRow, TestMCRow]("mctest", "test-bybit-linear",
 		WithLog(log.Default()),
 	)

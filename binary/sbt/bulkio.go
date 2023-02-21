@@ -6,13 +6,13 @@ import (
 )
 
 const (
-	Bucket10   uint64 = 10
-	Bucket100  uint64 = 100
-	Bucket1k   uint64 = 1000
-	Bucket10k  uint64 = 10000
-	Bucket100k uint64 = 100000
-	Bucket1m   uint64 = 1000000
-	Bucket10m  uint64 = 10000000
+	Bucket10   int64 = 10
+	Bucket100  int64 = 100
+	Bucket1k   int64 = 1000
+	Bucket10k  int64 = 10000
+	Bucket100k int64 = 100000
+	Bucket1m   int64 = 1000000
+	Bucket10m  int64 = 10000000
 )
 
 type BulkIO[P generics.Ptr[RT], RT any] interface {
@@ -23,11 +23,11 @@ var ErrClosed = errors.New("use of closed BulkIO")
 
 type BulkAppendContext[P generics.Ptr[RT], RT any] struct {
 	bucket []P
-	index  uint64
+	index  int64
 	closed bool
 }
 
-func NewBulkAppendContext[P generics.Ptr[RT], RT any](bucketSize uint64) *BulkAppendContext[P, RT] {
+func NewBulkAppendContext[P generics.Ptr[RT], RT any](bucketSize int64) *BulkAppendContext[P, RT] {
 	return &BulkAppendContext[P, RT]{
 		bucket: make([]P, bucketSize),
 	}
@@ -42,7 +42,7 @@ func (w *BulkAppendContext[P, RT]) Append(c *Container[P, RT], row P) error {
 	w.bucket[w.index] = row
 	w.index++
 
-	if w.index == uint64(len(w.bucket)) {
+	if w.index == int64(len(w.bucket)) {
 		if err := c.BulkAppend(w.bucket); err != nil {
 			return err
 		}

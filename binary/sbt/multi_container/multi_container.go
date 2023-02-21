@@ -16,7 +16,7 @@ import (
 
 type MultiContainerIteratorKey struct {
 	Filename string
-	RowId    uint64
+	RowId    int64
 }
 
 var ErrNoFileFound = errors.New("no file found")

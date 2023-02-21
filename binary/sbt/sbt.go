@@ -56,11 +56,11 @@ type Container[P generics.Ptr[RowType], RowType any] struct {
 	headerHash uint64
 	spec       RowSpec
 
-	contentOffset uint64
+	contentOffset int64
 	file          *os.File
 	pool          sync.Pool
 	filename      string
-	numRows       uint64
+	numRows       int64
 	headerSize    int32
 }
 
@@ -129,7 +129,7 @@ func open[P generics.Ptr[RowType], RowType any](
 		return
 	}
 
-	b.contentOffset = uint64(2 + 1 + 8 + 4 + b.headerSize)
+	b.contentOffset = int64(2 + 1 + 8 + 4 + b.headerSize)
 	b.pool = binary2.BytePoolN(int(b.spec.RowSize()))
 	if b.numRows, err = b.calculateNumRows(); err != nil {
 		err = fmt.Errorf("failed to calculate number of rows: %w", err)
@@ -226,7 +226,7 @@ func Create[P generics.Ptr[RowType], RowType any](
 		return
 	}
 
-	b.contentOffset = uint64(buf.Len())
+	b.contentOffset = int64(buf.Len())
 	if b.numRows, err = b.calculateNumRows(); err != nil {
 		err = fmt.Errorf("failed to calculate number of rows: %w", err)
 		return
@@ -247,20 +247,20 @@ func Load[P generics.Ptr[RowType], RowType any](
 }
 
 // calculateNumRows returns the number of rows in the Container file.
-func (c *Container[P, RowType]) calculateNumRows() (numRows uint64, err error) {
+func (c *Container[P, RowType]) calculateNumRows() (numRows int64, err error) {
 	var size int64
 	if size, err = c.file.Seek(0, io.SeekEnd); err != nil {
 		err = fmt.Errorf("failed to seek to end: %w", err)
 		return
 	}
 
-	numRows = uint64(size-int64(c.contentOffset)) / uint64(c.spec.RowSize())
+	numRows = (size - c.contentOffset) / int64(c.spec.RowSize())
 
 	return
 }
 
 // checkBounds checks if the given index is within the bounds of the Container file.
-func (c *Container[P, RowType]) checkBounds(index, count uint64) (err error) {
+func (c *Container[P, RowType]) checkBounds(index, count int64) (err error) {
 	if index+count > c.NumRows() {
 		err = fmt.Errorf("index out of bounds: %d > %d", index+count, c.numRows)
 		return
@@ -314,17 +314,17 @@ func (c *Container[P, RowType]) SeekEnd() (err error) {
 }
 
 // NumRows returns the number of rows.
-func (c *Container[P, RowType]) NumRows() uint64 {
+func (c *Container[P, RowType]) NumRows() int64 {
 	return c.numRows
 }
 
 // Size returns file size
-func (c *Container[P, RowType]) Size() uint64 {
-	return (c.numRows * uint64(c.spec.RowSize())) + uint64(c.headerSize+1+4+4)
+func (c *Container[P, RowType]) Size() int64 {
+	return c.numRows*int64(c.spec.RowSize()) + int64(c.headerSize+1+4+4)
 }
 
 // Set sets a row at the given index.
-func (c *Container[P, RowType]) Set(row P, index uint64) (err error) {
+func (c *Container[P, RowType]) Set(row P, index int64) (err error) {
 	if err = c.checkBounds(index, 1); err != nil {
 		return
 	}
@@ -344,7 +344,7 @@ func (c *Container[P, RowType]) Set(row P, index uint64) (err error) {
 		return
 	}
 
-	if _, err = c.file.WriteAt(buf, int64(c.contentOffset+index*uint64(c.spec.RowSize()))); err != nil {
+	if _, err = c.file.WriteAt(buf, c.contentOffset+index*int64(c.spec.RowSize())); err != nil {
 		err = fmt.Errorf("failed to write row: %w", err)
 		return
 	}
@@ -353,8 +353,8 @@ func (c *Container[P, RowType]) Set(row P, index uint64) (err error) {
 }
 
 // BulkSet sets a bulk of rows at the given index.
-func (c *Container[P, RowType]) BulkSet(index uint64, rows []P) (err error) {
-	if err = c.checkBounds(index, uint64(len(rows))); err != nil {
+func (c *Container[P, RowType]) BulkSet(index int64, rows []P) (err error) {
+	if err = c.checkBounds(index, int64(len(rows))); err != nil {
 		return
 	}
 
@@ -386,7 +386,7 @@ func (c *Container[P, RowType]) BulkSet(index uint64, rows []P) (err error) {
 		}
 	}
 
-	if _, err = c.file.WriteAt(buf.Bytes(), int64(c.contentOffset+index*uint64(c.spec.RowSize()))); err != nil {
+	if _, err = c.file.WriteAt(buf.Bytes(), c.contentOffset+index*int64(c.spec.RowSize())); err != nil {
 		err = fmt.Errorf("failed to write rows: %w", err)
 		return
 	}
@@ -464,13 +464,13 @@ func (c *Container[P, RowType]) BulkAppend(rows []P) (err error) {
 		return
 	}
 
-	c.numRows += uint64(len(rows))
+	c.numRows += int64(len(rows))
 
 	return
 }
 
 // ReadAt reads a row at a specified position.
-func (c *Container[P, RowType]) ReadAt(pos uint64, row P) (err error) {
+func (c *Container[P, RowType]) ReadAt(pos int64, row P) (err error) {
 	if err = c.checkBounds(pos, 1); err != nil {
 		return
 	}
@@ -485,8 +485,8 @@ func (c *Container[P, RowType]) ReadAt(pos uint64, row P) (err error) {
 	rowBytes := c.pool.Get().([]byte)
 	defer c.pool.Put(rowBytes)
 
-	offset := c.contentOffset + pos*uint64(c.spec.RowSize())
-	if _, err = c.file.ReadAt(rowBytes, int64(offset)); err != nil {
+	offset := c.contentOffset + pos*int64(c.spec.RowSize())
+	if _, err = c.file.ReadAt(rowBytes, offset); err != nil {
 		err = fmt.Errorf("failed to read row: %w", err)
 		return
 	}
@@ -507,14 +507,14 @@ func (c *Container[P, RowType]) ReadAt(pos uint64, row P) (err error) {
 // Use NumRows and pos 0 to read all rows, considering memory constraints, otherwise use Iter.
 //
 // returns the number of rows read and an error.
-func (c *Container[P, RowType]) BulkRead(pos uint64, rows []P) (n uint64, err error) {
-	if err = c.checkBounds(pos, uint64(len(rows))); err != nil {
+func (c *Container[P, RowType]) BulkRead(pos int64, rows []P) (n int64, err error) {
+	if err = c.checkBounds(pos, int64(len(rows))); err != nil {
 		return
 	}
 
 	rowSize := c.spec.RowSize()
-	offset := c.contentOffset + pos*uint64(rowSize)
-	byteSize := uint64(int(rowSize) * len(rows))
+	offset := c.contentOffset + pos*int64(rowSize)
+	byteSize := int64(int(rowSize) * len(rows))
 
 	if byteSize >= c.Size() {
 		byteSize = c.Size() - offset
@@ -530,17 +530,17 @@ func (c *Container[P, RowType]) BulkRead(pos uint64, rows []P) (n uint64, err er
 	decoder := NewDecoder(nil)
 
 	// decode rows
-	for ; n < uint64(len(rows)); n++ {
+	for ; n < int64(len(rows)); n++ {
 		var r Row
 		if r, err = rowTypeToInterface(rows[n]); err != nil {
 			err = fmt.Errorf("failed to convert row to interface: %w", err)
 			return
 		}
 
-		byteOffset := n * uint64(rowSize)
-		byteEnd := byteOffset + uint64(rowSize)
+		byteOffset := n * int64(rowSize)
+		byteEnd := byteOffset + int64(rowSize)
 
-		if byteEnd > uint64(len(rowBytes)) {
+		if byteEnd > int64(len(rowBytes)) {
 			break
 		}
 
@@ -562,7 +562,7 @@ type ColumnPrinter[P generics.Ptr[RowType], RowType any] func(row P) []any
 // Print prints the rows in the Container file to the specified writer.
 func (c *Container[P, RowType]) Print(
 	out io.Writer,
-	start, count uint64,
+	start, count int64,
 	pf ColumnPrinter[P, RowType],
 ) error {
 	rows := make([]P, count)
@@ -588,7 +588,7 @@ func (c *Container[P, RowType]) Print(
 	for i, v := range rows {
 		cp := pf(v)
 		trows[i] = make(table.Row, len(cp)+1)
-		trows[i][0] = uint64(i) + start
+		trows[i][0] = int64(i) + start
 		for j, v := range cp {
 			trows[i][j+1] = v
 		}
@@ -605,21 +605,21 @@ func (c *Container[P, RowType]) Print(
 	return nil
 }
 
-func (c *Container[P, RowType]) IterBucketSize(bucketSize uint64) *generics.Iterator[containers.Tuple[uint64, P]] {
-	return generics.NewIterator[containers.Tuple[uint64, P]](c, bucketSize)
+func (c *Container[P, RowType]) IterBucketSize(bucketSize int64) *generics.Iterator[containers.Tuple[int64, P]] {
+	return generics.NewIterator[containers.Tuple[int64, P]](c, bucketSize)
 }
 
-func (c *Container[P, RowType]) Iter() *generics.Iterator[containers.Tuple[uint64, P]] {
-	return generics.NewIterator[containers.Tuple[uint64, P]](c)
+func (c *Container[P, RowType]) Iter() *generics.Iterator[containers.Tuple[int64, P]] {
+	return generics.NewIterator[containers.Tuple[int64, P]](c)
 }
 
-func (c *Container[P, RowType]) IterHandler(iter *generics.Iterator[containers.Tuple[uint64, P]]) {
+func (c *Container[P, RowType]) IterHandler(iter *generics.Iterator[containers.Tuple[int64, P]]) {
 	go func() {
 		defer iter.IterationDone()
 
 		bucketSize := Bucket10k
 		if iter.Args != nil {
-			bucketSize = iter.Args[0].(uint64)
+			bucketSize = iter.Args[0].(int64)
 		}
 
 		nr := c.NumRows()
@@ -635,8 +635,8 @@ func (c *Container[P, RowType]) IterHandler(iter *generics.Iterator[containers.T
 			rows[i] = any(r).(Row).Factory().(P)
 		}
 
-		tuple := containers.NewTuple[uint64, P](uint64(0), nil)
-		pos := uint64(0)
+		tuple := containers.NewTuple[int64, P](int64(0), nil)
+		pos := int64(0)
 
 		for {
 			nRead, err := c.BulkRead(pos, rows)
@@ -649,7 +649,7 @@ func (c *Container[P, RowType]) IterHandler(iter *generics.Iterator[containers.T
 				break
 			}
 
-			for i := uint64(0); i < nRead; i++ {
+			for i := int64(0); i < nRead; i++ {
 				tuple.Set(pos+i, rows[i])
 
 				select {
@@ -673,6 +673,6 @@ func (c *Container[P, RowType]) IterHandler(iter *generics.Iterator[containers.T
 	}()
 }
 
-func (c *Container[P, RowType]) AsIterable() generics.Iterable[containers.Tuple[uint64, P]] {
+func (c *Container[P, RowType]) AsIterable() generics.Iterable[containers.Tuple[int64, P]] {
 	return c
 }
