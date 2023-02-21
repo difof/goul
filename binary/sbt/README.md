@@ -102,7 +102,7 @@ continuous files which can be automatically compressed by the `MultiContainer` o
 ```go
 mc, err := NewMultiContainer[*TestRow, TestRow](".", "testprefix",
     WithLog(log.Default), // allow logging to stdout
-    WithMultiContainerArchiveScheduler(10), // enable file split and compression
+    WithCompressionScheduler(10), // enable file split and compression every 10 seconds
 )
 if err != nil {
     panic(err)
