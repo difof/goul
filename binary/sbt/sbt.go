@@ -605,8 +605,8 @@ func (c *Container[P, RowType]) Print(
 	return nil
 }
 
-func (c *Container[P, RowType]) IterBucketSize(sizeMB int) *generics.Iterator[containers.Tuple[uint64, P]] {
-	return generics.NewIterator[containers.Tuple[uint64, P]](c, sizeMB)
+func (c *Container[P, RowType]) IterBucketSize(bucketSize uint64) *generics.Iterator[containers.Tuple[uint64, P]] {
+	return generics.NewIterator[containers.Tuple[uint64, P]](c, bucketSize)
 }
 
 func (c *Container[P, RowType]) Iter() *generics.Iterator[containers.Tuple[uint64, P]] {
@@ -617,29 +617,31 @@ func (c *Container[P, RowType]) IterHandler(iter *generics.Iterator[containers.T
 	go func() {
 		defer iter.IterationDone()
 
-		maxByteSize := uint64(10 * 1024 * 1024) // 10MB
+		bucketSize := Bucket10k
 		if iter.Args != nil {
-			maxByteSize = uint64(iter.Args[0].(int)) * 1024 * 1024
+			bucketSize = iter.Args[0].(uint64)
 		}
 
-		maxRows := maxByteSize / uint64(c.Header().RowSize())
+		nr := c.NumRows()
+		_ = nr
 
-		if maxRows > c.NumRows() {
-			maxRows = c.NumRows()
+		if bucketSize > c.NumRows() {
+			bucketSize = c.NumRows()
 		}
 
-		rows := make([]P, maxRows)
+		rows := make([]P, bucketSize)
 
 		for i, r := range rows {
 			rows[i] = any(r).(Row).Factory().(P)
 		}
 
 		tuple := containers.NewTuple[uint64, P](uint64(0), nil)
-		lastPos := uint64(0)
+		pos := uint64(0)
+
 		for {
-			nRead, err := c.BulkRead(lastPos, rows)
+			nRead, err := c.BulkRead(pos, rows)
 			if err != nil {
-				// TODO: error logging
+				iter.SetError(err)
 				return
 			}
 
@@ -648,7 +650,7 @@ func (c *Container[P, RowType]) IterHandler(iter *generics.Iterator[containers.T
 			}
 
 			for i := uint64(0); i < nRead; i++ {
-				tuple.Set(lastPos+i, rows[i])
+				tuple.Set(pos+i, rows[i])
 
 				select {
 				case <-iter.Done():
@@ -657,16 +659,15 @@ func (c *Container[P, RowType]) IterHandler(iter *generics.Iterator[containers.T
 				}
 			}
 
-			if lastPos+nRead >= c.NumRows() {
-				remaining := c.NumRows() - lastPos
-				if remaining == 0 || remaining == nRead {
-					break
-				}
+			pos += nRead
 
+			if pos == c.NumRows() {
+				break
+			}
+
+			if pos+bucketSize >= c.NumRows() {
+				remaining := c.NumRows() - pos
 				rows = rows[:remaining]
-				lastPos = c.NumRows() - remaining
-			} else {
-				lastPos += nRead
 			}
 		}
 	}()

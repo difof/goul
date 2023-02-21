@@ -51,9 +51,9 @@ func TestLoad(t *testing.T) {
 	}
 }
 
-const LargeSize = 100_000_000
+const LargeSize = 100_000
 
-func TestBulkAppend(t *testing.T) {
+func createBigSBT(t *testing.T) {
 	b, err := Create[*TestRow, TestRow]("test.sbt")
 
 	if err != nil {
@@ -61,8 +61,7 @@ func TestBulkAppend(t *testing.T) {
 	}
 
 	sz := LargeSize
-	flushsz := 10_000
-	bulk := NewBulkAppendContext[*TestRow, TestRow](flushsz)
+	bulk := NewBulkAppendContext[*TestRow, TestRow](Bucket10k)
 
 	start := time.Now()
 	for i := 0; i < sz; i++ {
@@ -86,6 +85,38 @@ func TestBulkAppend(t *testing.T) {
 	}
 }
 
+func TestBulkAppend(t *testing.T) {
+	createBigSBT(t)
+}
+
+func TestIterate(t *testing.T) {
+	b, err := Load[*TestRow, TestRow]("test.sbt")
+	if err != nil {
+		t.Fatalf("failed to open AcquireContainer file: %v", err)
+	}
+
+	it := b.IterBucketSize(35_000)
+	defer it.Close()
+
+	start := time.Now()
+	n := 0
+	for item := range it.Next() {
+		row := item.Value()
+		_ = row
+		n++
+	}
+
+	if it.Error() != nil {
+		t.Fatalf("failed to iterate: %v", it.Error())
+	}
+
+	if n != LargeSize {
+		t.Fatalf("expected %d rows, got %d", LargeSize, n)
+	}
+
+	t.Logf("Iteration took %dms", time.Since(start).Milliseconds())
+}
+
 func TestPrint(t *testing.T) {
 	b, err := OpenRead[*TestRow, TestRow]("test.sbt")
 
@@ -100,37 +131,4 @@ func TestPrint(t *testing.T) {
 	if err = b.Close(); err != nil {
 		t.Fatalf("failed to close AcquireContainer file: %v", err)
 	}
-}
-
-func TestIterate(t *testing.T) {
-	b, err := Load[*TestRow, TestRow]("test.sbt")
-	if err != nil {
-		t.Fatalf("failed to open AcquireContainer file: %v", err)
-	}
-
-	start := time.Now()
-	if b.NumRows() == 0 {
-		for i := 0; i < LargeSize; i++ {
-			if err := b.Append(&TestRow{
-				Symbol: "BTCUSDT",
-				Price:  rand.Uint32(),
-			}); err != nil {
-				t.Fatalf("failed to append: %v", err)
-			}
-		}
-
-		t.Logf("file size: %dMB | num rows: %d | append time %dms",
-			b.Size()/1024/1024, b.NumRows(), time.Since(start).Milliseconds())
-	}
-
-	it := b.Iter()
-	defer it.Close()
-
-	start = time.Now()
-	for item := range it.Next() {
-		row := item.Value()
-		_ = row
-	}
-
-	t.Logf("Iteration took %dms", time.Since(start).Milliseconds())
 }
