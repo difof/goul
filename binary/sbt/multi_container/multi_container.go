@@ -8,7 +8,7 @@ import (
 	"github.com/difof/goul/generics"
 	"github.com/difof/goul/generics/containers"
 	"github.com/difof/goul/task"
-	"path"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
@@ -21,12 +21,12 @@ type MultiContainerIteratorKey struct {
 
 var ErrNoFileFound = errors.New("no file found")
 
-// MultiContainer is a AcquireContainer wrapper allowing data insertion in multiple serial files
+// Container is a AcquireContainer wrapper allowing data insertion in multiple serial files
 // with archive control to save space.
 //
 // It use a predefined filename format for identifying files.
 // The format is <prefix>_<date 2006-01-02-15-04>_<unix time>.sbt
-type MultiContainer[P generics.Ptr[RowType], RowType any] struct {
+type Container[P generics.Ptr[RowType], RowType any] struct {
 	container         *sbt.Container[P, RowType]
 	am                *ArchiveManager
 	containerMutex    sync.Mutex
@@ -36,11 +36,11 @@ type MultiContainer[P generics.Ptr[RowType], RowType any] struct {
 	archiveTaskRunner *task.Runner
 }
 
-// NewMultiContainer creates a new MultiContainer and loads the last container file based on the mode
-func NewMultiContainer[P generics.Ptr[RowType], RowType any](
+// NewContainer creates a new Container and loads the last container file based on the mode
+func NewContainer[P generics.Ptr[RowType], RowType any](
 	rootDir, prefix string, options ...Option,
-) (c *MultiContainer[P, RowType], err error) {
-	c = &MultiContainer[P, RowType]{
+) (c *Container[P, RowType], err error) {
+	c = &Container[P, RowType]{
 		rootDir: rootDir,
 		prefix:  prefix,
 		opts: &Options{
@@ -57,7 +57,6 @@ func NewMultiContainer[P generics.Ptr[RowType], RowType any](
 		return
 	}
 
-	// TODO: load the last decompressed container file or open a new one
 	if err = c.loadContainer(false); err != nil {
 		return
 	}
@@ -73,9 +72,16 @@ func NewMultiContainer[P generics.Ptr[RowType], RowType any](
 }
 
 // loadContainer load a new container and close the current one.
-func (c *MultiContainer[P, RowType]) loadContainer(forceCreate bool) (err error) {
+func (c *Container[P, RowType]) loadContainer(forceCreate bool) (err error) {
 	c.AcquireContainer()
 	defer c.ReleaseContainer()
+
+	if c.container != nil {
+		if err = c.closeContainer(); err != nil {
+			err = fmt.Errorf("Container (%s): failed to close containers: %w", c.prefix, err)
+			return
+		}
+	}
 
 	if !forceCreate {
 		// just load the last file, otherwise continue with the new one
@@ -86,28 +92,27 @@ func (c *MultiContainer[P, RowType]) loadContainer(forceCreate bool) (err error)
 		}
 
 		if lastFilename != "" {
-			c.opts.LogPrintf("MultiContainer (%s): opening last file %s", c.prefix, lastFilename)
-			c.container, err = sbt.Open[P, RowType](lastFilename)
+			c.opts.LogPrintf("Container (%s): opening last file %s", c.prefix, lastFilename)
+
+			if c.opts.openRead {
+				c.container, err = sbt.OpenRead[P, RowType](lastFilename)
+			} else {
+				c.container, err = sbt.Open[P, RowType](lastFilename)
+			}
+
 			return
 		}
 	}
 
-	if c.container != nil {
-		if err = c.closeContainer(); err != nil {
-			err = fmt.Errorf("MultiContainer (%s): failed to close containers: %w", c.prefix, err)
-			return
-		}
-	}
-
-	filename := path.Join(c.rootDir, NewMultiContainerFilenamePartsFromNow(c.prefix).String())
-	c.opts.LogPrintf("MultiContainer (%s): creating %s", c.prefix, filename)
+	filename := filepath.Join(c.rootDir, NewMultiContainerFilenamePartsFromNow(c.prefix).String())
+	c.opts.LogPrintf("Container (%s): creating %s", c.prefix, filename)
 	c.container, err = sbt.Create[P, RowType](filename)
 
 	return
 }
 
 // archiveTask
-func (c *MultiContainer[P, RowType]) archiveTask(*task.Task) error {
+func (c *Container[P, RowType]) archiveTask(*task.Task) error {
 	if c.container == nil {
 		return nil
 	}
@@ -122,20 +127,20 @@ func (c *MultiContainer[P, RowType]) archiveTask(*task.Task) error {
 		return nil
 	}
 
-	c.am.QueueCompression(path.Join(c.rootDir, currentFilename))
+	c.am.QueueCompression(filepath.Join(c.rootDir, currentFilename))
 
 	return nil
 }
 
 // closeContainer
-func (c *MultiContainer[P, RowType]) closeContainer() error {
-	c.opts.LogPrintf("MultiContainer (%s): closing %s with %d rows",
+func (c *Container[P, RowType]) closeContainer() error {
+	c.opts.LogPrintf("Container (%s): closing %s with %d rows",
 		c.prefix, c.container.Filename(), c.container.NumRows())
 	return c.container.Close()
 }
 
 // Close closes the current container and the archive scheduler
-func (c *MultiContainer[P, RowType]) Close() (err error) {
+func (c *Container[P, RowType]) Close() (err error) {
 	if c.archiveTaskRunner != nil {
 		if err = c.archiveTaskRunner.Close(); err != nil {
 			return
@@ -157,39 +162,39 @@ func (c *MultiContainer[P, RowType]) Close() (err error) {
 
 // AcquireContainer returns the current container in a thread safe way.
 // MAKE SURE to call ReleaseContainer when done, otherwise the container will be locked forever.
-func (c *MultiContainer[P, RowType]) AcquireContainer() *sbt.Container[P, RowType] {
+func (c *Container[P, RowType]) AcquireContainer() *sbt.Container[P, RowType] {
 	c.containerMutex.Lock()
 	return c.container
 }
 
 // ReleaseContainer releases the current container.
-func (c *MultiContainer[P, RowType]) ReleaseContainer() {
+func (c *Container[P, RowType]) ReleaseContainer() {
 	c.containerMutex.Unlock()
 }
 
 // IterRange will begin iteration from the first found file and will stop at the last found file
-func (c *MultiContainer[P, RowType]) IterRange(
+func (c *Container[P, RowType]) IterRange(
 	start, end time.Time,
 ) *generics.Iterator[containers.Tuple[*MultiContainerIteratorKey, P]] {
 	return generics.NewIterator[containers.Tuple[*MultiContainerIteratorKey, P]](c, start, end)
 }
 
 // Iter will begin iteration from the very first found file
-func (c *MultiContainer[P, RowType]) Iter() *generics.Iterator[containers.Tuple[*MultiContainerIteratorKey, P]] {
+func (c *Container[P, RowType]) Iter() *generics.Iterator[containers.Tuple[*MultiContainerIteratorKey, P]] {
 	return generics.NewIterator[containers.Tuple[*MultiContainerIteratorKey, P]](c)
 }
 
-func (c *MultiContainer[P, RowType]) IterHandler(
+func (c *Container[P, RowType]) IterHandler(
 	iter *generics.Iterator[containers.Tuple[*MultiContainerIteratorKey, P]],
 ) {
 	go c.iterate(iter)
 }
 
-func (c *MultiContainer[P, RowType]) AsIterable() generics.Iterable[containers.Tuple[*MultiContainerIteratorKey, P]] {
+func (c *Container[P, RowType]) AsIterable() generics.Iterable[containers.Tuple[*MultiContainerIteratorKey, P]] {
 	return c
 }
 
-func (c *MultiContainer[P, RowType]) containerIter(
+func (c *Container[P, RowType]) containerIter(
 	underlying *sbt.Container[P, RowType],
 	mcIter *generics.Iterator[containers.Tuple[*MultiContainerIteratorKey, P]],
 ) error {
@@ -218,7 +223,7 @@ func (c *MultiContainer[P, RowType]) containerIter(
 	return nil
 }
 
-func (c *MultiContainer[P, RowType]) filenameIter(
+func (c *Container[P, RowType]) filenameIter(
 	filename string,
 	mcIter *generics.Iterator[containers.Tuple[*MultiContainerIteratorKey, P]],
 ) (err error) {
@@ -231,14 +236,14 @@ func (c *MultiContainer[P, RowType]) filenameIter(
 		err = container.Close()
 	}()
 
-	c.opts.LogPrintf("MultiContainer (%s): iterating over %s with %d rows",
+	c.opts.LogPrintf("Container (%s): iterating over %s with %d rows",
 		c.prefix, filename, container.NumRows())
 
 	return c.containerIter(container, mcIter)
 }
 
 // iterate handles the iterator goroutine
-func (c *MultiContainer[P, RowType]) iterate(
+func (c *Container[P, RowType]) iterate(
 	iter *generics.Iterator[containers.Tuple[*MultiContainerIteratorKey, P]],
 ) {
 	defer func() {
