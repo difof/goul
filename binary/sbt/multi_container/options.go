@@ -8,6 +8,7 @@ type Options struct {
 	logger              *log.Logger
 	archiveDelaySec     int
 	compressionPoolSize int
+	openRead            bool
 }
 
 // LogPrintf
@@ -36,5 +37,13 @@ func WithCompressionScheduler(delaySec int) Option {
 func WithCompressionPoolSize(size int) Option {
 	return func(o *Options) {
 		o.compressionPoolSize = size
+	}
+}
+
+// WithOpenRead sets the container to open the file for reading.
+// Defaults to false.
+func WithOpenRead() Option {
+	return func(o *Options) {
+		o.openRead = true
 	}
 }
