@@ -4,6 +4,7 @@ package concurrency
 
 import (
 	"github.com/difof/goul/generics/containers"
+	"sync"
 )
 
 type StringChannelT string
@@ -17,22 +18,30 @@ type Broker[ChannelT comparable, MsgT any] struct {
 	sub            chan *Subscription[ChannelT, MsgT]
 	unsub          chan *Subscription[ChannelT, MsgT]
 	defaultChannel ChannelT
+	wg             sync.WaitGroup
 }
 
-// NewBroker creates a new Broker.
-func NewBroker[ChannelT comparable, MsgT any](defaultChannel ChannelT) *Broker[ChannelT, MsgT] {
-	return &Broker[ChannelT, MsgT]{
+// NewBroker creates and starts a new Broker.
+func NewBroker[ChannelT comparable, MsgT any](defaultChannel ChannelT) (b *Broker[ChannelT, MsgT]) {
+	b = &Broker[ChannelT, MsgT]{
 		stop:           make(chan struct{}),
 		pub:            make(chan containers.Tuple[ChannelT, MsgT], 1),
 		sub:            make(chan *Subscription[ChannelT, MsgT], 1),
 		unsub:          make(chan *Subscription[ChannelT, MsgT], 1),
 		defaultChannel: defaultChannel,
 	}
+
+	b.wg.Add(1)
+	go b.start()
+
+	return
 }
 
-// Start starts the broker. Must be called before adding any new subscribers.
+// start starts the broker. Must be called before adding any new subscribers.
 // Will block until the broker is stopped.
-func (b *Broker[ChannelT, MsgT]) Start() {
+func (b *Broker[ChannelT, MsgT]) start() {
+	defer b.wg.Done()
+
 	subs := map[ChannelT]map[*Subscription[ChannelT, MsgT]]struct{}{}
 
 	for {
@@ -58,9 +67,10 @@ func (b *Broker[ChannelT, MsgT]) Start() {
 	}
 }
 
-// Stop stops the broker.
-func (b *Broker[ChannelT, MsgT]) Stop() {
+// Close stops the broker. It blocks until the broker is stopped.
+func (b *Broker[ChannelT, MsgT]) Close() {
 	close(b.stop)
+	b.wg.Wait()
 }
 
 // Publish publishes a message to the broker on default channel.
