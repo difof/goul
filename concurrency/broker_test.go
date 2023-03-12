@@ -11,7 +11,6 @@ import (
 
 func TestNewBroker(t *testing.T) {
 	b := NewBroker[string, string]("::")
-	go b.Start()
 
 	numSubs := 20
 	subReceived := containers.NewMap[int, bool]()
@@ -41,7 +40,7 @@ func TestNewBroker(t *testing.T) {
 
 	// let the messages flow for a while:
 	time.Sleep(time.Second)
-	b.Stop()
+	b.Close()
 
 	unhandledClients := make([]int, 0, numSubs)
 	handledClients := make([]int, 0, numSubs)
@@ -63,7 +62,7 @@ func TestNewBroker(t *testing.T) {
 
 func TestBroker_Unsubscribe(t *testing.T) {
 	b := NewBroker[string, struct{}]("::")
-	go b.Start()
+	go b.start()
 
 	// id -> num received
 	receives := containers.NewMap[int, int]()
