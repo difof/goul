@@ -157,7 +157,8 @@ func (am *ArchiveManager) getLastUncompressedFilename() (filename string, err er
 	filename = files[len(files)-1]
 
 	// check .sbt.gz with same name exists
-	if _, err = os.Stat(strings.TrimSuffix(filename, ".sbt") + ".sbt.gz"); os.IsNotExist(err) {
+	compressedFilename := strings.TrimSuffix(filename, ".sbt") + ".sbt.gz"
+	if _, err = os.Stat(compressedFilename); os.IsNotExist(err) {
 		err = nil
 		return
 	} else if err != nil {
