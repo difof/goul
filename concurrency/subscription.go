@@ -15,11 +15,12 @@ func NewSubscription[ChannelT comparable, MsgT any](broker *Broker[ChannelT, Msg
 	}
 }
 
+// Channel returns the channel of the subscription.
 func (s *Subscription[ChannelT, MsgT]) Channel() chan MsgT {
 	return s.msgCh
 }
 
-// Close closes the subscription.
+// Close removes the subscription.
 func (s *Subscription[ChannelT, MsgT]) Close() {
 	s.broker.Unsubscribe(s)
 }
