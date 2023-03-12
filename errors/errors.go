@@ -70,6 +70,9 @@ func (e *Error) StackTrace() (list []string) {
 
 // String returns current error's message and source
 func (e *Error) String() string {
+	if e.Message == nil {
+		return e.Source
+	}
 	return fmt.Sprintf("%v: %v", e.Source, e.Message)
 }
 
@@ -93,7 +96,11 @@ func getCallerInfo(skipFrames int) string {
 }
 
 // New constructs a new Error
-func New(msg string) error {
+func New(err error) error {
+	return NewError(getCallerInfo(0), nil, err)
+}
+
+func Newm(msg string) error {
 	return NewError(getCallerInfo(0), errors.New(msg), nil)
 }
 
