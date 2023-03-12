@@ -1,35 +1,36 @@
 package concurrency
 
-type ChanRequest[T any] struct {
-	resp         chan T
-	req          chan struct{}
-	errorHandler func(err error)
+import "context"
+
+// ChanRequest is a simple implementation of request-response pattern used to request data from goroutines.
+// Managing the Handler goroutine is the responsibility of the user.
+type ChanRequest[Req, Res any] struct {
+	resp chan Res
+	req  chan Req
 }
 
-func NewChanRequester[T any]() *ChanRequest[T] {
-	return &ChanRequest[T]{resp: make(chan T, 10), req: make(chan struct{}, 10)}
-}
-
-// SetErrorHandler sets the error handler.
-func (c *ChanRequest[T]) SetErrorHandler(f func(err error)) {
-	c.errorHandler = f
+func NewChanRequest[Req, Res any]() *ChanRequest[Req, Res] {
+	return &ChanRequest[Req, Res]{resp: make(chan Res, 10), req: make(chan Req, 10)}
 }
 
 // Request is a blocking function.
-func (c *ChanRequest[T]) Request() (resp T) {
-	c.req <- struct{}{}
+func (c *ChanRequest[Req, Res]) Request(arg Req) (resp Res) {
+	c.req <- arg
 	return <-c.resp
 }
 
 // Handle is a blocking function.
-func (c *ChanRequest[T]) Handle(f func() (T, error)) {
+func (c *ChanRequest[Req, Res]) Handle(ctx context.Context, f func(arg Req) (Res, error)) error {
 	for {
-		<-c.req
-		r, err := f()
-		if err != nil {
-			c.errorHandler(err)
-			return
+		select {
+		case <-ctx.Done():
+			return nil
+		case arg := <-c.req:
+			r, err := f(arg)
+			if err != nil {
+				return err
+			}
+			c.resp <- r
 		}
-		c.resp <- r
 	}
 }
