@@ -95,6 +95,14 @@ func getCallerInfo(skipFrames int) string {
 	return fmt.Sprintf("%v:%v", file, line)
 }
 
+// Check returns a new error if the given error is not nil
+func Check(err error) error {
+	if err != nil {
+		return News(1, err)
+	}
+	return nil
+}
+
 // New constructs a new Error
 func New(err error) error {
 	return NewError(getCallerInfo(0), nil, err)
@@ -121,8 +129,8 @@ func Newif(inner error, format string, params ...interface{}) error {
 }
 
 // News constructs a new Error and skips given frames for getting stack info.
-func News(skip int, msg string) error {
-	return NewError(getCallerInfo(skip), errors.New(msg), nil)
+func News(skip int, err error) error {
+	return NewError(getCallerInfo(skip), nil, err)
 }
 
 func Newsi(skip int, inner error, msg string) error {

@@ -4,7 +4,7 @@ type RunnerHandler func() error
 
 // CmdRunner is a runner manager and only one instance per process is needed.
 //
-// Runners will be started as soon the CmdRunner.Start() is called, and will be
+// Runners will be started as soon the CmdRunner.start() is called, and will be
 // automatically stopped if the stop signal is received. Starting and stopping of
 // runners must be handled by user, using the provided handlers.
 //

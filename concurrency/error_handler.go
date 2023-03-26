@@ -6,20 +6,23 @@ import "sync"
 // If it returns true, the context is cancelled.
 type ErrFunc func(error) bool
 
+// ErrorHandler is used to handle errors in goroutines
 type ErrorHandler struct {
 	ctx  CancelContext
 	wg   sync.WaitGroup
 	last error
 	ef   ErrFunc
+	errs chan error
 }
 
-func NewErrorHandler(ctx CancelContext) ErrorHandler {
-	return ErrorHandler{
-		ctx: ctx,
+func NewErrorHandler(ctx CancelContext) *ErrorHandler {
+	return &ErrorHandler{
+		ctx:  ctx,
+		errs: make(chan error, 10),
 	}
 }
 
-// SetErrorHandler
+// SetErrorHandler sets the error handler function
 func (h *ErrorHandler) SetErrorHandler(ef ErrFunc) {
 	h.ef = ef
 }
@@ -38,9 +41,15 @@ func (h *ErrorHandler) Context() CancelContext {
 func (h *ErrorHandler) Go(f func() error) {
 	h.wg.Add(1)
 	go func() {
+		var err error
+		defer func() {
+			if err != nil {
+				h.errs <- err
+			}
+		}()
 		defer h.wg.Done()
 
-		if err := f(); err != nil {
+		if err = f(); err != nil {
 			h.last = err
 
 			if h.ef != nil {
@@ -65,4 +74,9 @@ func (h *ErrorHandler) Wait() error {
 	h.ctx.Cancel()
 	h.wg.Wait()
 	return h.last
+}
+
+// Error returns the error channel
+func (h *ErrorHandler) Error() <-chan error {
+	return h.errs
 }
