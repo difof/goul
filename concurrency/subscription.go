@@ -24,3 +24,8 @@ func (s *Subscription[ChannelT, MsgT]) Channel() chan MsgT {
 func (s *Subscription[ChannelT, MsgT]) Close() {
 	s.broker.Unsubscribe(s)
 }
+
+// Broker returns the broker of the subscription.
+func (s *Subscription[ChannelT, MsgT]) Broker() *Broker[ChannelT, MsgT] {
+	return s.broker
+}
