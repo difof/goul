@@ -2,20 +2,21 @@ package task
 
 import (
 	"context"
-	"github.com/gofrs/uuid"
 	"time"
+
+	"github.com/gofrs/uuid"
 )
 
 // Task is passed to task handlers and contains the payload
 type Task struct {
-	config  *Config
+	config  *TaskConfig
 	args    []any
 	elapsed time.Duration
 	ctx     context.Context
 	cancel  context.CancelFunc
 }
 
-func newTask(config *Config, args []any) (t *Task) {
+func newTask(config *TaskConfig, args []any) (t *Task) {
 	t = &Task{
 		config: config,
 		args:   args,

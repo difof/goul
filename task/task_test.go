@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func createTask(t *testing.T, customTick func(*Task)) *Runner {
+func createTask(t *testing.T, customTick func(*Task)) *TaskRunner {
 	r, err := Every(1).Second().
 		OnBeforeStart(func(task *Task) error {
 			t.Logf("task %s - elapsed %d (onBeforeStart)", task.Id(), task.Elapsed().Milliseconds())

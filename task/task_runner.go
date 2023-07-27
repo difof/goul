@@ -7,17 +7,17 @@ import (
 	"time"
 )
 
-// Runner is responsible for running the task given to them
-type Runner struct {
+// TaskRunner is responsible for running the task given to them
+type TaskRunner struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
-	config *Config
+	config *TaskConfig
 	err    error
 }
 
-func newRunner(config *Config) (r *Runner, err error) {
-	r = &Runner{
+func newRunner(config *TaskConfig) (r *TaskRunner, err error) {
+	r = &TaskRunner{
 		config: config,
 	}
 
@@ -37,7 +37,7 @@ func newRunner(config *Config) (r *Runner, err error) {
 }
 
 // run starts the task runner.
-func (r *Runner) run() {
+func (r *TaskRunner) run() {
 	tickDelay := unitSeconds / 100
 	if r.config.unit == unitMilliseconds {
 		tickDelay = unitMilliseconds / 5
@@ -63,7 +63,7 @@ func (r *Runner) run() {
 }
 
 // handleTask
-func (r *Runner) handleTask() (err error) {
+func (r *TaskRunner) handleTask() (err error) {
 	// do nothing if it's just started
 	if time.Since(r.config.nextStep) <= 0 {
 		return
@@ -94,7 +94,7 @@ func (r *Runner) handleTask() (err error) {
 }
 
 // calculateTaskNextStep calculates the next step of the task.
-func (r *Runner) calculateTaskNextStep() {
+func (r *TaskRunner) calculateTaskNextStep() {
 	if r.config.unit == unitWeeks {
 		now := time.Now()
 		remainingDays := r.config.weekDay - now.Weekday()
@@ -123,7 +123,7 @@ func (r *Runner) calculateTaskNextStep() {
 }
 
 // Close closes the task runner.
-func (r *Runner) Close() error {
+func (r *TaskRunner) Close() error {
 	r.cancel()
 	r.wg.Wait()
 	return r.err
