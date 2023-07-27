@@ -103,6 +103,22 @@ func Check(err error) error {
 	return nil
 }
 
+func Checkm(err error, msg string) error {
+	if err != nil {
+		return Newsi(1, err, msg)
+	}
+	return nil
+}
+
+func Checkmf(err error, msg string, params ...interface{}) error {
+	if err != nil {
+		msg = fmt.Sprintf(msg, params...)
+		return Newsi(1, err, msg)
+	}
+
+	return nil
+}
+
 // New constructs a new Error
 func New(err error) error {
 	return NewError(getCallerInfo(0), nil, err)
