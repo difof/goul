@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/difof/goul/binary/sbt"
-	"github.com/difof/goul/generics"
-	"github.com/difof/goul/generics/containers"
-	"github.com/difof/goul/task"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/difof/goul/binary/sbt"
+	"github.com/difof/goul/generics"
+	"github.com/difof/goul/generics/containers"
+	"github.com/difof/goul/task"
 )
 
 type MultiContainerIteratorKey struct {
@@ -33,7 +34,7 @@ type Container[P generics.Ptr[RowType], RowType any] struct {
 	rootDir           string
 	prefix            string
 	opts              *Options
-	archiveTaskRunner *task.Runner
+	archiveTaskRunner *task.TaskRunner
 }
 
 // NewContainer creates a new Container and loads the last container file based on the mode
