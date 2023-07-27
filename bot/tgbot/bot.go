@@ -97,12 +97,8 @@ func (b *Bot) handle(ctx context.Context, update *WrappedUpdate) {
 
 	uctx := NewUpdateContext(b, update, ctx)
 
-	for _, middleware := range b.middlewares {
-		err := middleware(uctx)
-		if err != nil {
-			log.Println("middleware error:", err)
-			return
-		}
+	if err := b.runMiddlewares(uctx); err != nil {
+		log.Println("middleware error:", err)
 	}
 
 	for _, handler := range b.handlers[update.Type] {
@@ -124,6 +120,18 @@ func (b *Bot) handle(ctx context.Context, update *WrappedUpdate) {
 			break
 		}
 	}
+}
+
+// runMiddlewares runs the middlewares for an update.
+func (b *Bot) runMiddlewares(uctx UpdateContext) (err error) {
+	for _, middleware := range b.middlewares {
+		err = middleware(uctx)
+		if err != nil {
+			return
+		}
+	}
+
+	return
 }
 
 // populateUpdateTypes populates the update types for handlers.
