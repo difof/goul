@@ -1,10 +1,9 @@
-//
-
 package config_loader
 
 import (
 	"encoding/json"
 	"fmt"
+	_ "github.com/joho/godotenv/autoload"
 	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
@@ -13,13 +12,7 @@ import (
 	"strings"
 )
 
-type Configuration interface {
-	// DefaultValue returns the default value for the given field.
-	DefaultValue(field string) interface{}
-
-	// SetField is used to set the value of a field from environment variables.
-	SetField(field string, value interface{})
-}
+type Configuration any
 
 type ConfigOption func(*LoaderOpts)
 
@@ -116,24 +109,32 @@ func loadYAML(readBytes []byte, config Configuration) error {
 	return nil
 }
 
-func foreachField(config Configuration, it func(field reflect.StructField)) {
+func foreachField(config Configuration, it func(field reflect.StructField, rv reflect.Value)) {
 	rf := reflect.TypeOf(config).Elem()
+	rv := reflect.ValueOf(config).Elem()
 
 	for i := 0; i < rf.NumField(); i++ {
-		it(rf.Field(i))
+		it(rf.Field(i), rv.Field(i))
 	}
 }
 
 func setDefaults(config Configuration) {
-	foreachField(config, func(field reflect.StructField) {
+	foreachField(config, func(field reflect.StructField, rv reflect.Value) {
 		fieldName := field.Name
-		config.SetField(fieldName, config.DefaultValue(fieldName))
+		defaultValue := field.Tag.Get("default")
+
+		if defaultValue == "" {
+			return
+		}
+
+		if err := setField(field, rv, defaultValue); err != nil {
+			panic(fmt.Errorf("failed to set field %s: %w", fieldName, err))
+		}
 	})
 }
 
 func readEnvOverrides(prefix string, config Configuration) {
-	// TODO: add .env file support, but commandline env vars should override .env file vars
-	foreachField(config, func(field reflect.StructField) {
+	foreachField(config, func(field reflect.StructField, rv reflect.Value) {
 		fieldName := field.Name
 		envName := field.Tag.Get("env")
 		if envName == "" {
@@ -152,20 +153,37 @@ func readEnvOverrides(prefix string, config Configuration) {
 			return
 		}
 
-		switch field.Type.Kind() {
-		case reflect.String:
-			config.SetField(fieldName, envValue)
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			num, _ := strconv.Atoi(envValue)
-			config.SetField(fieldName, num)
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			num, _ := strconv.ParseUint(envValue, 10, 64)
-			config.SetField(fieldName, num)
-		case reflect.Bool:
-			b, _ := strconv.ParseBool(envValue)
-			config.SetField(fieldName, b)
-		default:
-			panic(fmt.Sprintf("unsupported field type: %s", field.Type.Kind()))
+		if err := setField(field, rv, envValue); err != nil {
+			panic(fmt.Errorf("failed to set field %s: %w", fieldName, err))
 		}
 	})
+}
+
+func setField(field reflect.StructField, rv reflect.Value, value string) error {
+	switch field.Type.Kind() {
+	case reflect.String:
+		rv.SetString(value)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		num, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse int value: %w", err)
+		}
+		rv.SetInt(num)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		num, err := strconv.ParseUint(value, 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse uint value: %w", err)
+		}
+		rv.SetUint(num)
+	case reflect.Bool:
+		b, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("failed to parse bool value: %w", err)
+		}
+		rv.SetBool(b)
+	default:
+		return fmt.Errorf("unsupported field type: %s", field.Type.Kind())
+	}
+
+	return nil
 }
