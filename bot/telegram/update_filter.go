@@ -1,4 +1,4 @@
-package tgbot
+package telegram
 
 type UpdateFilter func(update *WrappedUpdate) (bool, error)
 

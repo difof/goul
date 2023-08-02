@@ -1,10 +1,11 @@
-package tgbot
+package telegram
 
 import (
 	"context"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"sync"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 // Bot is a Telegram bot using go-telegram-bot-api and long polling.
