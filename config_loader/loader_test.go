@@ -8,23 +8,8 @@ import (
 )
 
 type BasicConfig struct {
-	Username string `json:"username" env:"USERNAME"`
-}
-
-func (c *BasicConfig) DefaultValue(field string) interface{} {
-	switch field {
-	case "Username":
-		return "default"
-	}
-
-	return nil
-}
-
-func (c *BasicConfig) SetField(field string, value interface{}) {
-	switch field {
-	case "Username":
-		c.Username = value.(string)
-	}
+	Username string `json:"username"`
+	Act      string `default:"holo***"`
 }
 
 func TestLoadConfig(t *testing.T) {
@@ -50,5 +35,17 @@ func TestEnvOverrides(t *testing.T) {
 
 	if config.Username != "test_admin" {
 		t.Fatal("username not set correctly")
+	}
+}
+
+func TestDefaultValues(t *testing.T) {
+	config := &BasicConfig{}
+	err := Load(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if config.Act != "holo***" {
+		t.Fatal("username not set correctly: " + config.Username)
 	}
 }
