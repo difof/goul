@@ -10,7 +10,7 @@ import (
 	"github.com/difof/goul/errors"
 )
 
-func ValidateHash(initData string, token string) (ok bool, err error) {
+func ValidateHash(initData string, token string) (u *UserInitData, ok bool, err error) {
 	var values url.Values
 	values, err = url.ParseQuery(initData)
 	if err != nil {
@@ -22,6 +22,12 @@ func ValidateHash(initData string, token string) (ok bool, err error) {
 	user := values.Get("user")
 	authDate := values.Get("auth_date")
 	hash := values.Get("hash")
+
+	u, err = NewUserInitData(user)
+	if err != nil {
+		err = errors.Newif(err, "Error parsing user data %s", user)
+		return
+	}
 
 	sb := strings.Builder{}
 	sb.WriteString("auth_date=")
