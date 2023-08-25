@@ -103,7 +103,7 @@ func (b *Bot) handle(ctx context.Context, update *WrappedUpdate) {
 	}
 
 	for _, handler := range b.handlers[update.Type] {
-		ok, err := handler.ApplyFilters(update)
+		ok, err := handler.ApplyFilters(uctx)
 		if err != nil {
 			log.Printf("error applying filters on update [%s]: %v", update, err)
 			continue
@@ -124,7 +124,7 @@ func (b *Bot) handle(ctx context.Context, update *WrappedUpdate) {
 }
 
 // runMiddlewares runs the middlewares for an update.
-func (b *Bot) runMiddlewares(uctx UpdateContext) (err error) {
+func (b *Bot) runMiddlewares(uctx *UpdateContext) (err error) {
 	for _, middleware := range b.middlewares {
 		err = middleware(uctx)
 		if err != nil {

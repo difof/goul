@@ -15,8 +15,8 @@ type UpdateContext struct {
 }
 
 // NewUpdateContext creates a new update context.
-func NewUpdateContext(bot *Bot, update *WrappedUpdate, ctx context.Context) UpdateContext {
-	return UpdateContext{
+func NewUpdateContext(bot *Bot, update *WrappedUpdate, ctx context.Context) *UpdateContext {
+	return &UpdateContext{
 		WrappedUpdate: update,
 		bot:           bot,
 		context:       ctx,
@@ -24,16 +24,16 @@ func NewUpdateContext(bot *Bot, update *WrappedUpdate, ctx context.Context) Upda
 }
 
 // Context returns the context of the update.
-func (ctx UpdateContext) Context() context.Context {
+func (ctx *UpdateContext) Context() context.Context {
 	return ctx.context
 }
 
 // Client returns the Telegram client.
-func (ctx UpdateContext) Client() *tgbotapi.BotAPI {
+func (ctx *UpdateContext) Client() *tgbotapi.BotAPI {
 	return ctx.bot.tg
 }
 
 // StopPropagation stops the propagation of the update to the next handlers.
-func (ctx UpdateContext) StopPropagation() {
+func (ctx *UpdateContext) StopPropagation() {
 	ctx.propagationStopped = true
 }

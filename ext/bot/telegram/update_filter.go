@@ -1,6 +1,6 @@
 package telegram
 
-type UpdateFilter func(update *WrappedUpdate) (bool, error)
+type UpdateFilter func(c *UpdateContext) (bool, error)
 
 type ChatType string
 
@@ -13,27 +13,27 @@ const (
 
 // FilterByChatType returns a filter that filters updates by chat type.
 func FilterByChatType(t ChatType) UpdateFilter {
-	return func(update *WrappedUpdate) (bool, error) {
-		return update.FromChat().Type == string(t), nil
+	return func(c *UpdateContext) (bool, error) {
+		return c.FromChat().Type == string(t), nil
 	}
 }
 
 // FilterByCommand returns a filter that filters updates by command.
 func FilterByCommand(command string) UpdateFilter {
-	return func(update *WrappedUpdate) (bool, error) {
-		if !update.Message.IsCommand() {
+	return func(c *UpdateContext) (bool, error) {
+		if !c.Message.IsCommand() {
 			return false, nil
 		}
 
-		return update.Message.Command() == command, nil
+		return c.Message.Command() == command, nil
 	}
 }
 
 // AnyFilter combines multiple filters into one, which returns true if any of the filters return true.
 func AnyFilter(filters ...UpdateFilter) UpdateFilter {
-	return func(update *WrappedUpdate) (bool, error) {
+	return func(c *UpdateContext) (bool, error) {
 		for _, filter := range filters {
-			ok, err := filter(update)
+			ok, err := filter(c)
 
 			if err != nil {
 				return false, err

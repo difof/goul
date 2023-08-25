@@ -3,9 +3,7 @@ package telegram
 import "github.com/gofrs/uuid"
 
 // UpdateCallback is a function that handles an update.
-type UpdateCallback func(ctx UpdateContext) error
-
-//type UpdateFilter func(update *WrappedUpdate) (bool, error)
+type UpdateCallback func(ctx *UpdateContext) error
 
 type UpdateHandler struct {
 	ID       uuid.UUID
@@ -22,7 +20,7 @@ func NewUpdateHandler(handler UpdateCallback, filters ...UpdateFilter) *UpdateHa
 }
 
 // ApplyFilters applies all filters to the update.
-func (h *UpdateHandler) ApplyFilters(update *WrappedUpdate) (bool, error) {
+func (h *UpdateHandler) ApplyFilters(update *UpdateContext) (bool, error) {
 	for _, filter := range h.Filters {
 		ok, err := filter(update)
 

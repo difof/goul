@@ -17,8 +17,8 @@ I will add features as I need them.
 | [Job queue](./task/job_queue.go)                 | Simple job queue                                                      |
 | [Generic collections](./generics)                | Generic collections with LINQ capabilities                            |
 | [LINQ for slices](./generics/native_linq.go)     | Basic LINQ support for native slices                                  |
-| [Redis](./redis)                                 | Redis connection helper                                               |
-| [Bots](./bot)                                    | Bot utilities ([Telegram](./bot/tgbot/bot_test.go) only, for now)     |
+| [Redis](ext/redis)                                 | Redis connection helper                                               |
+| [Bots](ext/bot)                                    | Bot utilities ([Telegram](ext/bot/tgbot/bot_test.go) only, for now)     |
 
 ## Usage
 
