@@ -9,7 +9,7 @@ Docs: [pkg.go.dev](https://pkg.go.dev/github.com/difof/goul)
 I will add features as I need them.
 
 | Feature                                          | Description                                                           |
-| ------------------------------------------------ | --------------------------------------------------------------------- |
+|--------------------------------------------------|-----------------------------------------------------------------------|
 | [Config loader](./config_loader/loader_test.go)  | Load and combine configuration from json/yaml and env                 |
 | [Broker](./concurrency/broker_test.go)           | Local broker pattern                                                  |
 | [Fast and efficient CSV alternative](binary/sbt) | Fast binary storage for bulk read/write of fixed size structured data |
@@ -17,8 +17,9 @@ I will add features as I need them.
 | [Job queue](./task/job_queue.go)                 | Simple job queue                                                      |
 | [Generic collections](./generics)                | Generic collections with LINQ capabilities                            |
 | [LINQ for slices](./generics/native_linq.go)     | Basic LINQ support for native slices                                  |
-| [Redis](ext/redis)                                 | Redis connection helper                                               |
-| [Bots](ext/bot)                                    | Bot utilities ([Telegram](ext/bot/tgbot/bot_test.go) only, for now)     |
+| [Redis](ext/redis)                               | Redis connection helper                                               |
+| [Bots](ext/bot)                                  | Bot utilities ([Telegram](ext/bot/tgbot/bot_test.go) only, for now)   |
+| [Errors](./errors)                               | Improved error handling                                               |
 
 ## Usage
 

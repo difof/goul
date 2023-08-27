@@ -8,7 +8,10 @@ import (
 	"strings"
 )
 
-// Error is a lightweight error struct with context
+// Error is a lightweight error struct with stack trace.
+// Compatible with standard errors package.
+//
+// Use NewXY functions to construct new errors.
 type Error struct {
 	Source  string
 	Message error
@@ -46,7 +49,7 @@ func (e *Error) Each(it func(err error) bool) {
 
 // StackTrace builds the stack trace of all inner errors of Error
 func (e *Error) StackTrace() (list []string) {
-	// TODO: should put the inner most error at first line then add stacktrace from outer most
+	// TODO: should put the inner most error at first line then add stacktrace from outer most? maybe?
 	list = make([]string, 0, 5)
 
 	// reverse list
@@ -84,9 +87,9 @@ func (e *Error) Error() string {
 // Unwrap returns the inner error
 func (e *Error) Unwrap() error { return e.Inner }
 
-// getCallerInfo returns the file and line that called any of New functions as string
+// getCallerPath returns the file and line that called any of New functions as string
 // skipFrames parameter defines how many functions to skip
-func getCallerInfo(skipFrames int) string {
+func getCallerPath(skipFrames int) string {
 	_, file, line, ok := runtime.Caller(2 + skipFrames)
 	if !ok {
 		return "<no source>"
@@ -103,6 +106,7 @@ func Check(err error) error {
 	return nil
 }
 
+// Checkm returns error or nil. If error is not nil, it will be wrapped with the given message
 func Checkm(err error, msg string) error {
 	if err != nil {
 		return Newsi(1, err, msg)
@@ -110,6 +114,7 @@ func Checkm(err error, msg string) error {
 	return nil
 }
 
+// Checkmf returns error or nil. If error is not nil, it will be wrapped with the given message
 func Checkmf(err error, msg string, params ...interface{}) error {
 	if err != nil {
 		msg = fmt.Sprintf(msg, params...)
@@ -119,46 +124,100 @@ func Checkmf(err error, msg string, params ...interface{}) error {
 	return nil
 }
 
-// New constructs a new Error
+func IgnoreCheckAny[R any]() func(R) error { return nil }
+
+// CheckAny is used for two return values function which also returns an error.
+//
+// It calls the given function if the error is nil, otherwise it returns the error.
+// Also returns the error returned by the given function.
+func CheckAny[R any](result R, err error) func(func(R) error) error {
+	if err != nil {
+		return func(f func(result R) error) error {
+			return err
+		}
+	}
+
+	return func(f func(result R) error) (err error) {
+		if err = f(result); err != nil {
+			return News(2, f(result))
+		}
+
+		return
+	}
+}
+
+func CheckAnym[R any](result R, err error) func(func(R) error, string) error {
+	if err != nil {
+		return func(f func(result R) error, msg string) error {
+			return Newsi(2, err, msg)
+		}
+	}
+
+	return func(f func(result R) error, msg string) (err error) {
+		if err = f(result); err != nil {
+			return Newsi(2, f(result), msg)
+		}
+
+		return
+	}
+}
+
+func CheckAnymf[R any](result R, err error) func(func(R) error, string, ...any) error {
+	if err != nil {
+		return func(f func(result R) error, format string, params ...any) error {
+			return Newsif(2, err, format, params...)
+		}
+	}
+
+	return func(f func(result R) error, format string, params ...any) (err error) {
+		if err = f(result); err != nil {
+			return Newsif(2, f(result), format, params...)
+		}
+
+		return
+	}
+}
+
+// New adds stack trace to the given error
 func New(err error) error {
-	return NewError(getCallerInfo(0), nil, err)
+	return NewError(getCallerPath(0), nil, err)
 }
 
+// Newm constructs a new Error using the message
 func Newm(msg string) error {
-	return NewError(getCallerInfo(0), errors.New(msg), nil)
+	return NewError(getCallerPath(0), errors.New(msg), nil)
 }
 
-// Newi attaches an existing error to a new error
-// This is used to provide an easier way for wrapping errors and stack trace
+// Newi wraps the error with a new Error and a message
 func Newi(inner error, msg string) error {
-	return NewError(getCallerInfo(0), errors.New(msg), inner)
+	return NewError(getCallerPath(0), errors.New(msg), inner)
 }
 
-// Newf constructs a formatted error
+// Newf constructs a new Error using the format
 func Newf(format string, params ...interface{}) error {
-	return NewError(getCallerInfo(0), errors.New(fmt.Sprintf(format, params...)), nil)
+	return NewError(getCallerPath(0), errors.New(fmt.Sprintf(format, params...)), nil)
 }
 
-// Newif constructs a new formatted error with an attached inner error
+// Newif constructs a new formatted error with a wrapped inner error
 func Newif(inner error, format string, params ...interface{}) error {
-	return NewError(getCallerInfo(0), errors.New(fmt.Sprintf(format, params...)), inner)
+	return NewError(getCallerPath(0), errors.New(fmt.Sprintf(format, params...)), inner)
 }
 
-// News constructs a new Error and skips given frames for getting stack info.
+// News constructs a new Error and skips stack frames for getting caller path.
 func News(skip int, err error) error {
-	return NewError(getCallerInfo(skip), nil, err)
+	return NewError(getCallerPath(skip), nil, err)
 }
 
 func Newsi(skip int, inner error, msg string) error {
-	return NewError(getCallerInfo(skip), errors.New(msg), inner)
+	return NewError(getCallerPath(skip), errors.New(msg), inner)
 }
 
 func Newsf(skip int, format string, params ...interface{}) error {
-	return NewError(getCallerInfo(skip), errors.New(fmt.Sprintf(format, params...)), nil)
+	return NewError(getCallerPath(skip), errors.New(fmt.Sprintf(format, params...)), nil)
 }
 
 func Newsif(skip int, inner error, format string, params ...interface{}) error {
-	return NewError(getCallerInfo(skip), errors.New(fmt.Sprintf(format, params...)), inner)
+	return NewError(getCallerPath(skip), errors.New(fmt.Sprintf(format, params...)), inner)
 }
 
 // As is a wrapper around go's standard errors.As
