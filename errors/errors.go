@@ -124,7 +124,7 @@ func Checkmf(err error, msg string, params ...interface{}) error {
 	return nil
 }
 
-func IgnoreCheckAny[R any]() func(R) error { return nil }
+func IgnoreCheckAny[R any]() func(R) error { return func(R) error { return nil } }
 
 // CheckAny is used for two return values function which also returns an error.
 //
