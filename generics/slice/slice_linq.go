@@ -1,7 +1,9 @@
-package generics
+package slice
 
-// SliceMap returns a new slice with the results of applying the given function to each element of the given slice.
-func SliceMap[TIn any, TOut any](slice []TIn, fn func(TIn) (TOut, error)) (result []TOut, err error) {
+import "github.com/difof/goul/generics"
+
+// Map returns a new slice with the results of applying the given function to each element of the given slice.
+func Map[TIn any, TOut any](slice []TIn, fn func(TIn) (TOut, error)) (result []TOut, err error) {
 	result = make([]TOut, len(slice))
 
 	for i, v := range slice {
@@ -29,15 +31,15 @@ func SortF[T any](slice []T, fn func(T, T) (bool, error)) error {
 }
 
 // Sort sorts the given slice in ascending order. The type parameter must be a native number type.
-func Sort[T LTGTConstraint](slice []T) {
-	SortF(slice, func(a, b T) (bool, error) {
+func Sort[T generics.LTGTConstraint](slice []T) error {
+	return SortF(slice, func(a, b T) (bool, error) {
 		return a > b, nil
 	})
 }
 
 // Reverse sorts the given slice in descending order. The type parameter must be a native number type.
-func Reverse[T LTGTConstraint](slice []T) {
-	SortF(slice, func(a, b T) (bool, error) {
+func Reverse[T generics.LTGTConstraint](slice []T) error {
+	return SortF(slice, func(a, b T) (bool, error) {
 		return a < b, nil
 	})
 }
