@@ -1,8 +1,8 @@
 package generics
 
 // SliceMap returns a new slice with the results of applying the given function to each element of the given slice.
-func SliceMap[T any, U any](slice []T, fn func(T) (U, error)) (result []U, err error) {
-	result = make([]U, len(slice))
+func SliceMap[TIn any, TOut any](slice []TIn, fn func(TIn) (TOut, error)) (result []TOut, err error) {
+	result = make([]TOut, len(slice))
 
 	for i, v := range slice {
 		if result[i], err = fn(v); err != nil {
