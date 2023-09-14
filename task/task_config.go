@@ -1,6 +1,7 @@
 package task
 
 import (
+	"context"
 	"time"
 
 	"github.com/difof/goul/concurrency"
@@ -85,7 +86,18 @@ func (c *TaskConfig) Do(f Handler, args ...any) (r *TaskRunner, err error) {
 	c.task = newTask(c, args)
 	c.onTick = f
 
-	r, err = newRunner(c)
+	r, err = newRunner(context.Background(), c)
+	c.runner = r
+
+	return
+}
+
+// DoContext run the task with the supplied payload in a new goroutine.
+func (c *TaskConfig) DoContext(ctx context.Context, f Handler, args ...any) (r *TaskRunner, err error) {
+	c.task = newTask(c, args)
+	c.onTick = f
+
+	r, err = newRunner(ctx, c)
 	c.runner = r
 
 	return

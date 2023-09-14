@@ -16,12 +16,12 @@ type TaskRunner struct {
 	err    error
 }
 
-func newRunner(config *TaskConfig) (r *TaskRunner, err error) {
+func newRunner(ctx context.Context, config *TaskConfig) (r *TaskRunner, err error) {
 	r = &TaskRunner{
 		config: config,
 	}
 
-	r.ctx, r.cancel = context.WithCancel(context.Background())
+	r.ctx, r.cancel = context.WithCancel(ctx)
 
 	r.wg.Add(1)
 	go r.run()
