@@ -41,3 +41,19 @@ func Reverse[T LTGTConstraint](slice []T) {
 		return a < b, nil
 	})
 }
+
+// Filter returns a new slice containing only the elements of the given slice for which the given function returns true.
+func Filter[T any](slice []T, fn func(T) (bool, error)) (result []T, err error) {
+	result = []T{}
+
+	for _, v := range slice {
+		var ok bool
+		if ok, err = fn(v); err != nil {
+			return
+		} else if ok {
+			result = append(result, v)
+		}
+	}
+
+	return
+}
