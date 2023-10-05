@@ -3,7 +3,7 @@ package config_loader
 import (
 	"encoding/json"
 	"fmt"
-	_ "github.com/joho/godotenv/autoload"
+	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
@@ -11,6 +11,9 @@ import (
 	"strconv"
 	"strings"
 )
+
+// TODO: fmt.Errorf to errors.Newi
+// TODO: break down Load func
 
 type Configuration any
 
@@ -26,6 +29,12 @@ type LoaderOpts struct {
 
 	// errorIfNotFound is a flag that determines whether an error should be returned if the config file is not found.
 	errorIfNotFound bool
+
+	// rootDir is the directory to look for .env files
+	rootDir string
+
+	// envFileName is the name of the .env file, defaults to .env
+	envFileName string
 }
 
 // ConfigPath sets the path to the config file.
@@ -39,6 +48,20 @@ func ConfigPath(path string) ConfigOption {
 func EnvPrefix(prefix string) ConfigOption {
 	return func(o *LoaderOpts) {
 		o.envPrefix = strings.ToUpper(prefix)
+	}
+}
+
+// RootDir sets the directory to look for .env files
+func RootDir(rootDir string) ConfigOption {
+	return func(o *LoaderOpts) {
+		o.rootDir = rootDir
+	}
+}
+
+// EnvFileName sets the name of the .env file, defaults to .env
+func EnvFileName(envFileName string) ConfigOption {
+	return func(o *LoaderOpts) {
+		o.envFileName = envFileName
 	}
 }
 
@@ -58,11 +81,20 @@ func ErrorIfNotFound(errorIfNotFound bool) ConfigOption {
 // - All fields must be exported.
 //
 // - Fields without env tag will be uppercase and used as environment variable name.
-
 func Load(config Configuration, options ...ConfigOption) error {
-	opts := &LoaderOpts{}
+	opts := &LoaderOpts{
+		envFileName: ".env",
+	}
 	for _, option := range options {
 		option(opts)
+	}
+
+	if opts.rootDir != "" {
+		if err := godotenv.Load(filepath.Join(opts.rootDir, opts.envFileName)); err != nil {
+			return fmt.Errorf("failed to load env file: %w", err)
+		}
+	} else {
+		_ = godotenv.Load()
 	}
 
 	setDefaults(config)
@@ -109,15 +141,6 @@ func loadYAML(readBytes []byte, config Configuration) error {
 	return nil
 }
 
-func foreachField(config Configuration, it func(field reflect.StructField, rv reflect.Value)) {
-	rf := reflect.TypeOf(config).Elem()
-	rv := reflect.ValueOf(config).Elem()
-
-	for i := 0; i < rf.NumField(); i++ {
-		it(rf.Field(i), rv.Field(i))
-	}
-}
-
 func setDefaults(config Configuration) {
 	foreachField(config, func(field reflect.StructField, rv reflect.Value) {
 		fieldName := field.Name
@@ -157,6 +180,15 @@ func readEnvOverrides(prefix string, config Configuration) {
 			panic(fmt.Errorf("failed to set field %s: %w", fieldName, err))
 		}
 	})
+}
+
+func foreachField(config Configuration, it func(field reflect.StructField, rv reflect.Value)) {
+	rf := reflect.TypeOf(config).Elem()
+	rv := reflect.ValueOf(config).Elem()
+
+	for i := 0; i < rf.NumField(); i++ {
+		it(rf.Field(i), rv.Field(i))
+	}
 }
 
 func setField(field reflect.StructField, rv reflect.Value, value string) error {
