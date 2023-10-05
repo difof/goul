@@ -1,5 +1,7 @@
 package containers
 
+import "fmt"
+
 type Tuple[K any, V any] struct {
 	First  K
 	Second V
@@ -25,8 +27,7 @@ func (t Tuple[K, V]) Value() V {
 	return t.Second
 }
 
-// Set sets the first and second values of the tuple.
-func (t *Tuple[K, V]) Set(first K, second V) {
-	t.First = first
-	t.Second = second
+// String returns a string representation of the tuple.
+func (t Tuple[K, V]) String() string {
+	return fmt.Sprintf("(%v, %v)", t.First, t.Second)
 }
