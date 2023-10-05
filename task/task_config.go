@@ -45,6 +45,7 @@ type TaskConfig struct {
 	weekDay      time.Weekday
 	hour, minute int
 	from, to     time.Time
+	name         string
 
 	sem           *concurrency.Semaphore
 	runner        *TaskRunner
@@ -68,6 +69,8 @@ func newConfig(interval int, oneShot bool) (config *TaskConfig) {
 		sem:      concurrency.NewSemaphore(1),
 	}
 
+	config.name = "task_" + config.id.String()
+
 	return
 }
 
@@ -79,6 +82,29 @@ func (c *TaskConfig) callHandler(f Handler) error {
 	}
 
 	return nil
+}
+
+// Clone
+func (c *TaskConfig) Clone() *TaskConfig {
+	return &TaskConfig{
+		id:            uuid.Must(uuid.NewV4()),
+		oneShot:       c.oneShot,
+		nextStep:      c.nextStep,
+		lastRun:       c.lastRun,
+		unit:          c.unit,
+		interval:      c.interval,
+		weekDay:       c.weekDay,
+		hour:          c.hour,
+		minute:        c.minute,
+		from:          c.from,
+		to:            c.to,
+		name:          c.name,
+		runner:        c.runner,
+		task:          c.task,
+		onTick:        c.onTick,
+		onFinish:      c.onFinish,
+		onBeforeStart: c.onBeforeStart,
+	}
 }
 
 // Do run the task with the supplied payload in a new goroutine.
@@ -101,6 +127,11 @@ func (c *TaskConfig) DoContext(ctx context.Context, f Handler, args ...any) (r *
 	c.runner = r
 
 	return
+}
+
+func (c *TaskConfig) WithName(name string) *TaskConfig {
+	c.name = name
+	return c
 }
 
 // OnFinish sets the finish handler for the task.

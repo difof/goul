@@ -46,3 +46,7 @@ func (t *Task) Id() uuid.UUID {
 func (t *Task) Stop() {
 	t.cancel()
 }
+
+func (t *Task) Name() string {
+	return t.config.name
+}
