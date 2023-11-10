@@ -16,11 +16,9 @@ func NewRunnerContainer() *RunnerContainer {
 	}
 }
 
-func (r *RunnerContainer) Append(cfg *TaskConfig, cb Handler) error {
+func (r *RunnerContainer) Append(cfg *TaskConfig, cb Handler) {
 	r.Configs = append(r.Configs, cfg)
 	r.Callbacks = append(r.Callbacks, cb)
-
-	return nil
 }
 
 func (r *RunnerContainer) StartAll() error {
