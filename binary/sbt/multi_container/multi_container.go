@@ -208,7 +208,9 @@ func (c *Container[P, RowType]) containerIter(
 	for item := range cit.Next() {
 		mcik.RowId = item.Key()
 		mcik.Filename = underlying.Filename()
-		tuple.Set(mcik, item.Value())
+
+		tuple.First = mcik
+		tuple.Second = item.Value()
 
 		select {
 		case <-mcIter.Done():
