@@ -16,3 +16,9 @@ func NewUserInitData(data string) (u *UserInitData, err error) {
 	err = json.Unmarshal([]byte(data), u)
 	return
 }
+
+// String
+func (u *UserInitData) String() string {
+	b, _ := json.MarshalIndent(u, "", "  ")
+	return string(b)
+}
