@@ -112,8 +112,8 @@ func Findi[T any](slice []T, fn func(T) (bool, error)) (result int, ok bool, err
 	return
 }
 
-// Remove removes the first element of the given slice for which the given function returns true.
-func Remove[T any](slice []T, fn func(T) (bool, error)) (result []T, ok bool, err error) {
+// RemoveF removes the first element of the given slice for which the given function returns true.
+func RemoveF[T any](slice []T, fn func(T) (bool, error)) (result []T, ok bool, err error) {
 	result = make([]T, 0, len(slice))
 
 	for _, v := range slice {
@@ -125,4 +125,16 @@ func Remove[T any](slice []T, fn func(T) (bool, error)) (result []T, ok bool, er
 	}
 
 	return
+}
+
+// Remove removes the element at the given index from the given slice.
+func Remove[T any](slice []T, index int) []T {
+	return append(slice[:index], slice[index+1:]...)
+}
+
+// FastRemove removes the element at the given index from the given slice. The order of the elements is not preserved.
+// More efficient than Remove.
+func FastRemove[T any](slice []T, index int) []T {
+	slice[index] = slice[len(slice)-1]
+	return slice[:len(slice)-1]
 }
