@@ -87,8 +87,9 @@ func (e *Error) Error() string {
 // Unwrap returns the inner error
 func (e *Error) Unwrap() error { return e.Inner }
 
-// getCallerPath returns the file and line that called any of New functions as string
-// skipFrames parameter defines how many functions to skip
+// getCallerPath returns the file and line that called any of New functions as string.
+//
+// skipFrames parameter defines how many functions to skip.
 func getCallerPath(skipFrames int) string {
 	_, file, line, ok := runtime.Caller(2 + skipFrames)
 	if !ok {
@@ -98,16 +99,18 @@ func getCallerPath(skipFrames int) string {
 	return fmt.Sprintf("%v:%v", file, line)
 }
 
-// Check returns a new error if the given error is not nil
-func Check(err error) error {
+// Catch returns a new error if the given error is not nil, otherwise returns nil.
+//
+// Useful for returning error or nil as last statement.
+func Catch(err error) error {
 	if err != nil {
 		return News(1, err)
 	}
 	return nil
 }
 
-// Checkf returns error or nil. If error is not nil, it will be wrapped with the given message
-func Checkf(err error, msg string, params ...interface{}) error {
+// Catchf is same as Catch except that it accepts a message
+func Catchf(err error, msg string, params ...interface{}) error {
 	if err != nil {
 		msg = fmt.Sprintf(msg, params...)
 		return Newsi(1, err, msg)
@@ -116,15 +119,17 @@ func Checkf(err error, msg string, params ...interface{}) error {
 	return nil
 }
 
-func IgnoreCheckAny[R any]() func(R) error { return func(R) error { return nil } }
+// IgnoreCatchResult is used in CatchResult callback to ignore the result
+func IgnoreCatchResult[R any]() func(R) error { return func(R) error { return nil } }
 
-// CheckAny is used for two return values function which also returns an error.
+// CatchResult is used for two return values functions returning an error.
 //
-// It calls the given function if the error is nil, otherwise it returns the error.
+// You should call the returned function,
+// callback will be called if error is nil, otherwise it returns the error.
 // Also returns the error returned by the given function.
 //
-// This function is a shortcut for when you either return an error or handle a result as last statement in a function.
-func CheckAny[R any](result R, err error) func(func(R) error) error {
+// This function is a shortcut for when you either return an error or handle a result as the last statement.
+func CatchResult[R any](result R, err error) func(func(R) error) error {
 	if err != nil {
 		return func(f func(result R) error) error {
 			return err
@@ -140,13 +145,8 @@ func CheckAny[R any](result R, err error) func(func(R) error) error {
 	}
 }
 
-// CheckAnyf is used for two return values function which also returns an error.
-//
-// It calls the given function if the error is nil, otherwise it returns the error.
-// Also returns the error returned by the given function.
-//
-// This function is a shortcut for when you either return an error or handle a result as last statement in a function.
-func CheckAnyf[R any](result R, err error) func(func(R) error, string, ...any) error {
+// CatchResultf is same as CatchResult except that it appends a format message to the error.
+func CatchResultf[R any](result R, err error) func(func(R) error, string, ...any) error {
 	if err != nil {
 		return func(f func(result R) error, format string, params ...any) error {
 			return Newsif(1, err, format, params...)
