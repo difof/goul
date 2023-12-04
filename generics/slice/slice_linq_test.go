@@ -22,3 +22,11 @@ func TestSort(t *testing.T) {
 		t.Fatal(slice)
 	}
 }
+
+func TestReverse(t *testing.T) {
+	slice := []int{1, 2, 3}
+	Reverse(slice)
+	if slice[0] != 3 || slice[1] != 2 || slice[2] != 1 {
+		t.Fatal(slice)
+	}
+}

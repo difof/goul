@@ -61,11 +61,13 @@ func Sort[T generics.LTGTConstraint](slice []T) error {
 	})
 }
 
-// Reverse sorts the given slice in descending order. The type parameter must be a native number type.
-func Reverse[T generics.LTGTConstraint](slice []T) error {
-	return SortF(slice, func(a, b T) (bool, error) {
-		return a < b, nil
-	})
+// Reverse reverses the given slice.
+func Reverse[T any](slice []T) []T {
+	for i, j := 0, len(slice)-1; i < j; i, j = i+1, j-1 {
+		slice[i], slice[j] = slice[j], slice[i]
+	}
+
+	return slice
 }
 
 // Filter returns a new slice containing only the elements of the given slice for which the given function returns true.
@@ -98,8 +100,8 @@ func Find[T any](slice []T, fn func(T) (bool, error)) (result T, ok bool, err er
 	return
 }
 
-// Findi returns the index of the first element of the given slice for which the given function returns true.
-func Findi[T any](slice []T, fn func(T) (bool, error)) (result int, ok bool, err error) {
+// FindIndex returns the index of the first element of the given slice for which the given function returns true.
+func FindIndex[T any](slice []T, fn func(T) (bool, error)) (result int, ok bool, err error) {
 	for i, v := range slice {
 		if ok, err = fn(v); err != nil {
 			return
@@ -137,4 +139,11 @@ func Remove[T any](slice []T, index int) []T {
 func FastRemove[T any](slice []T, index int) []T {
 	slice[index] = slice[len(slice)-1]
 	return slice[:len(slice)-1]
+}
+
+// Clone returns a new slice with the same elements as the given slice.
+func Clone[T any](slice []T) []T {
+	result := make([]T, len(slice))
+	copy(result, slice)
+	return result
 }
