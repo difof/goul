@@ -14,7 +14,7 @@ func ValidateHash(initData string, token string) (u *UserInitData, ok bool, err 
 	var values url.Values
 	values, err = url.ParseQuery(initData)
 	if err != nil {
-		err = errors.Newi(err, "Error parsing query string")
+		err = errors.Newif(err, "Error parsing query string")
 		return
 	}
 

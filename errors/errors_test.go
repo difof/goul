@@ -1,28 +1,50 @@
 package errors
 
 import (
-	"io"
+	goerrors "errors"
 	"testing"
 )
 
 func a() error {
-	return Newi(b(), "failed to call b")
+	return Newif(b(), "in 'a' error from 'b'")
 }
 
 func b() error {
-	return Newi(c(), "failed to call c")
+	return Newif(c(), "in 'b' error from 'c'")
 }
 
 func c() error {
-	return Newi(io.EOF, "failed to call io.EOF")
+	return Newif(messageError(), "in 'c' error from 'messageError'")
+}
+
+var msgErr = goerrors.New("message error")
+var testErr = New("message error")
+
+func messageError() error {
+	return msgErr
 }
 
 func TestHasError(t *testing.T) {
-	err := a()
+	err := func() error {
+		return Newi(a())
+	}()
 
-	if !Is(err, io.EOF) {
-		t.Error("err doesn't contain io.EOF")
+	err = Newi(err)
+
+	if !Is(err, msgErr) {
+		t.Fatal("err does not contain msgErr")
 	}
 
+	if Is(err, testErr) {
+		t.Fatal("err contains testErr")
+	}
+
+	// order of stacktrace:
+	// 1. messageError (final error)
+	// 2. c
+	// 3. b
+	// 4. a
+	// 5. TestHasError.func1
+	// 6. TestHasError
 	t.Log(err.Error())
 }

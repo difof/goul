@@ -4,14 +4,12 @@ import (
 	"errors"
 	goerrors "errors"
 	"fmt"
+	"github.com/difof/goul/generics/slice"
 	"runtime"
 	"strings"
 )
 
-// Error is a lightweight error struct with stack trace.
-// Compatible with standard errors package.
-//
-// Use NewXY functions to construct new errors.
+// Error is a lightweight drop-in replacement for standard errors package with stacktrace.
 type Error struct {
 	Source  string
 	Message error
@@ -26,7 +24,7 @@ func NewError(source string, message, inner error) *Error {
 	}
 }
 
-// Each iterates all inner errors as long as they're Error, starting from itself
+// Each iterates over all inner errors of Error
 func (e *Error) Each(it func(err error) bool) {
 	if it == nil {
 		return
@@ -49,18 +47,15 @@ func (e *Error) Each(it func(err error) bool) {
 
 // StackTrace builds the stack trace of all inner errors of Error
 func (e *Error) StackTrace() (list []string) {
-	// TODO: should put the inner most error at first line then add stacktrace from outer most? maybe?
 	list = make([]string, 0, 5)
 
-	// reverse list
 	defer func() {
-		for i, j := 0, len(list)-1; i < j; i, j = i+1, j-1 {
-			list[i], list[j] = list[j], list[i]
-		}
+		slice.Reverse(list)
 	}()
 
 	e.Each(func(err error) bool {
-		if e, ok := err.(*Error); ok {
+		var e *Error
+		if As(err, &e) {
 			list = append(list, e.String())
 		} else {
 			list = append(list, err.Error())
@@ -87,16 +82,29 @@ func (e *Error) Error() string {
 // Unwrap returns the inner error
 func (e *Error) Unwrap() error { return e.Inner }
 
-// getCallerPath returns the file and line that called any of New functions as string.
+var showFuncName = true
+
+// SetShowFuncName sets whether to show the function name in the stack trace before the file and line
+func SetShowFuncName(show bool) {
+	showFuncName = show
+}
+
+// getCallerPath returns the file and line which called any of New functions as string.
 //
 // skipFrames parameter defines how many functions to skip.
 func getCallerPath(skipFrames int) string {
-	_, file, line, ok := runtime.Caller(2 + skipFrames)
+	pc, file, line, ok := runtime.Caller(2 + skipFrames)
 	if !ok {
 		return "<no source>"
 	}
 
-	return fmt.Sprintf("%v:%v", file, line)
+	f := runtime.FuncForPC(pc).Name()
+
+	if showFuncName {
+		return fmt.Sprintf("at %s %s:%d", f, file, line)
+	}
+
+	return fmt.Sprintf("%s:%d", file, line)
 }
 
 // Catch returns a new error if the given error is not nil, otherwise returns nil.
@@ -104,7 +112,7 @@ func getCallerPath(skipFrames int) string {
 // Useful for returning error or nil as last statement.
 func Catch(err error) error {
 	if err != nil {
-		return News(1, err)
+		return Newsi(1, err)
 	}
 	return nil
 }
@@ -113,7 +121,7 @@ func Catch(err error) error {
 func Catchf(err error, msg string, params ...interface{}) error {
 	if err != nil {
 		msg = fmt.Sprintf(msg, params...)
-		return Newsi(1, err, msg)
+		return Newsif(1, err, msg)
 	}
 
 	return nil
@@ -126,10 +134,10 @@ func IgnoreCatchResult[R any]() func(R) error { return func(R) error { return ni
 //
 // You should call the returned function,
 // callback will be called if error is nil, otherwise it returns the error.
-// Also returns the error returned by the given function.
+// Also returns the error returned by the callback.
 //
 // This function is a shortcut for when you either return an error or handle a result as the last statement.
-func CatchResult[R any](result R, err error) func(func(R) error) error {
+func CatchResult[R any](result R, err error) func(callback func(R) error) error {
 	if err != nil {
 		return func(f func(result R) error) error {
 			return err
@@ -138,7 +146,7 @@ func CatchResult[R any](result R, err error) func(func(R) error) error {
 
 	return func(f func(result R) error) (err error) {
 		if err = f(result); err != nil {
-			return News(1, f(result))
+			return Newsi(1, f(result))
 		}
 
 		return
@@ -162,53 +170,51 @@ func CatchResultf[R any](result R, err error) func(func(R) error, string, ...any
 	}
 }
 
-// New adds stack trace to the given error
-func New(err error) error {
-	return NewError(getCallerPath(0), nil, err)
-}
-
-// Newm constructs a new Error using the message
-func Newm(msg string) error {
+// New creates a new error
+func New(msg string) error {
 	return NewError(getCallerPath(0), errors.New(msg), nil)
 }
 
-// Newi wraps the error with a new Error and a message
-func Newi(inner error, msg string) error {
-	return NewError(getCallerPath(0), errors.New(msg), inner)
+// Newi wraps the error
+func Newi(inner error) error {
+	return NewError(getCallerPath(0), nil, inner)
 }
 
-// Newf constructs a new Error using the format
+// Newf creates a new formatted error
 func Newf(format string, params ...interface{}) error {
 	return NewError(getCallerPath(0), errors.New(fmt.Sprintf(format, params...)), nil)
 }
 
-// Newif constructs a new formatted error with a wrapped inner error
+// Newif creates a new formatted error with inner error
 func Newif(inner error, format string, params ...interface{}) error {
 	return NewError(getCallerPath(0), errors.New(fmt.Sprintf(format, params...)), inner)
 }
 
-// News constructs a new Error and skips stack frames for getting caller path.
-func News(skip int, err error) error {
-	return NewError(getCallerPath(skip), nil, err)
+// News creates a new error with custom stack skip
+func News(skip int, msg string) error {
+	return NewError(getCallerPath(skip), errors.New(msg), nil)
 }
 
-func Newsi(skip int, inner error, msg string) error {
-	return NewError(getCallerPath(skip), errors.New(msg), inner)
+// Newsi wraps the error with custom stack skip
+func Newsi(skip int, inner error) error {
+	return NewError(getCallerPath(skip), nil, inner)
 }
 
+// Newsf creates a new formatted error with custom stack skip
 func Newsf(skip int, format string, params ...interface{}) error {
 	return NewError(getCallerPath(skip), errors.New(fmt.Sprintf(format, params...)), nil)
 }
 
+// Newsif creates a new formatted error with inner error and custom stack skip
 func Newsif(skip int, inner error, format string, params ...interface{}) error {
 	return NewError(getCallerPath(skip), errors.New(fmt.Sprintf(format, params...)), inner)
 }
 
-// As is a wrapper around go's standard errors.As
+// As wrapper around go's standard errors.As
 func As(err error, target interface{}) bool { return goerrors.As(err, target) }
 
-// Is is a wrapper around go's standard errors.Is
+// Is wrapper around go's standard errors.Is
 func Is(err, target error) bool { return goerrors.Is(err, target) }
 
-// Unwrap is a wrapper around go's standard errors.Unwrap
+// Unwrap wrapper around go's standard errors.Unwrap
 func Unwrap(err error) error { return goerrors.Unwrap(err) }
